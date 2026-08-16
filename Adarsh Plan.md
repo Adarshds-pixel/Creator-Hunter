@@ -225,33 +225,35 @@ creator-hunter/
 
 ## 13. Team & Task Division (5 Members)
 
-Work is organized into 5 parallel tracks so the team can build simultaneously rather than sequentially. Each track owner is responsible for their module end-to-end (implementation + basic verification) and coordinates with adjacent tracks at integration points.
+Work is organized into 5 parallel tracks, one owned per team member, so the team can build simultaneously rather than sequentially. Each owner is responsible for their module end-to-end (implementation + basic verification) and coordinates with adjacent tracks at integration points.
 
-| # | Track | Responsibilities | Key Deliverables |
+| Member | Title | Responsibilities | Key Deliverables |
 |---|---|---|---|
-| **1** | **Backend & Database** | Express app setup, all Mongoose schemas, JWT auth (register/login/me), password hashing, auth middleware, error handling, seed data generation script | `models/`, `routes/auth.routes.js`, `middleware/auth.middleware.js`, `seed/` |
-| **2** | **AI / Scoring Engineer** | Gemini API integration (`aiService.js`), prompt design for all 3 AI calls, `fallbackParser.js`, Match Score & Authenticity Score algorithm design and implementation, query relaxation ladder | `services/aiService.js`, `services/fallbackParser.js`, `services/scoringService.js`, `services/searchService.js` |
-| **3** | **Frontend — Search Experience** | Vite/Tailwind project setup, design system (colors, typography, shadcn primitives), Landing page, Auth pages, Search page, `StagedAILoader`, `FilterChipBar`, `CreatorGrid`/`CreatorCard` | `pages/LandingPage`, `pages/SearchPage`, `components/search/`, `components/creator/CreatorCard.jsx` |
-| **4** | **Frontend — Creator Intelligence & Data** | Creator Profile page, `ScoreGauge`, `AudienceCharts` (Recharts), Shortlist page, react-query hooks, axios client + JWT interceptor | `pages/CreatorProfilePage`, `pages/ShortlistPage`, `hooks/`, `lib/apiClient.js` |
-| **5** | **Frontend — Outreach, Integration & QA** | Outreach modal, channel tabs, campaign context form, end-to-end integration across all tracks, responsive/polish pass, Postman/Thunder Client collection, README & documentation | `components/outreach/`, integration fixes, `README.md`, API test collection |
+| **Kiran** | **Backend Developer** | Express app setup, all Mongoose schemas, JWT auth (register/login/me), password hashing, auth middleware, error handling, seed data generation script | `models/`, `routes/auth.routes.js`, `middleware/auth.middleware.js`, `seed/` |
+| **Adarsh** | **AI/ML Engineer** | Gemini API integration (`aiService.js`), prompt design for all 3 AI calls, `fallbackParser.js`, Match Score & Authenticity Score algorithm design and implementation, query relaxation ladder | `services/aiService.js`, `services/fallbackParser.js`, `services/scoringService.js`, `services/searchService.js` |
+| **Akshay** | **Frontend Developer — UI/UX & Search** | Vite/Tailwind project setup, design system (colors, typography, shadcn primitives), Landing page, Auth pages, Search page, `StagedAILoader`, `FilterChipBar`, `CreatorGrid`/`CreatorCard` | `pages/LandingPage`, `pages/SearchPage`, `components/search/`, `components/creator/CreatorCard.jsx` |
+| **Vishwaradhya** | **Frontend Developer — Data Visualization** | Creator Profile page, `ScoreGauge`, `AudienceCharts` (Recharts), Shortlist page, react-query hooks, axios client + JWT interceptor | `pages/CreatorProfilePage`, `pages/ShortlistPage`, `hooks/`, `lib/apiClient.js` |
+| **Abhiram** | **QA & Integration Engineer** | Outreach modal, channel tabs, campaign context form, end-to-end integration across all tracks, responsive/polish pass, Postman/Thunder Client collection, README & documentation | `components/outreach/`, integration fixes, `README.md`, API test collection |
 
-Track 1 and Track 2 form the backend pair and should sync on the `Creator` schema shape early (Track 2's scoring functions depend on the fields Track 1 defines). Tracks 3–5 form the frontend group and should agree on the shared design system and API contract (from §7) before diverging into their own pages.
+*Assignments above are a suggested starting point sized for even workload — the team can freely reassign based on individual interest or skill.*
+
+Kiran and Adarsh form the backend pair and should sync on the `Creator` schema shape early (Adarsh's scoring functions depend on the fields Kiran defines). Akshay, Vishwaradhya, and Abhiram form the frontend group and should agree on the shared design system and API contract (from §7) before diverging into their own pages.
 
 ## 14. Development Phases
 
 **Phase 1 — Setup & Foundation**
-All tracks scaffold in parallel: Track 1 sets up Express + MongoDB Atlas connection; Track 2 obtains a Gemini API key and drafts prompt schemas; Tracks 3–5 set up the Vite client, Tailwind config, routing, and shared design tokens/components.
+All members scaffold in parallel: Kiran sets up Express + MongoDB Atlas connection; Adarsh obtains a Gemini API key and drafts prompt schemas; Akshay, Vishwaradhya, and Abhiram set up the Vite client, Tailwind config, routing, and shared design tokens/components.
 
 **Phase 2 — Core Feature Development**
-Tracks build their owned modules against the agreed API contract, using mock/stub data where a dependency isn't ready yet:
-- Track 1: schemas, auth, seed script (target: 200 creators seeded with computed authenticity scores)
-- Track 2: `aiService` + `fallbackParser` + `scoringService`/`searchService`, verified via `testGemini.js` / `testScoring.js`
-- Track 3: Landing, Auth pages, Search page + staged loader (against mock search responses)
-- Track 4: Profile page + charts, Shortlist page (against mock creator data)
-- Track 5: Outreach modal (against mock outreach responses)
+Each member builds their owned module against the agreed API contract, using mock/stub data where a dependency isn't ready yet:
+- Kiran: schemas, auth, seed script (target: 200 creators seeded with computed authenticity scores)
+- Adarsh: `aiService` + `fallbackParser` + `scoringService`/`searchService`, verified via `testGemini.js` / `testScoring.js`
+- Akshay: Landing, Auth pages, Search page + staged loader (against mock search responses)
+- Vishwaradhya: Profile page + charts, Shortlist page (against mock creator data)
+- Abhiram: Outreach modal (against mock outreach responses)
 
 **Phase 3 — Integration**
-Replace mocks with real API calls end-to-end; Track 5 leads integration testing across the full workflow (search → profile → shortlist → outreach).
+Replace mocks with real API calls end-to-end; Abhiram leads integration testing across the full workflow (search → profile → shortlist → outreach).
 
 **Phase 4 — Testing, Polish & Documentation**
 Responsive pass (desktop/tablet/mobile breakpoints), empty/error states, loading-state timing, scoring smoke tests, Gemini fallback verification (test with the API key intentionally disabled), final README with setup instructions and architecture overview.
@@ -261,7 +263,7 @@ Responsive pass (desktop/tablet/mobile breakpoints), empty/error states, loading
 - **Scoring smoke tests** (`server/src/scripts/testScoring.js`): hand-picked cases asserting score ranges (e.g. in-budget + city match + high engagement → >85; 3x over-budget → <40 regardless of other factors)
 - **Gemini reliability test** (`server/src/scripts/testGemini.js`): run filter extraction against several example briefs; then disable `GEMINI_API_KEY` and confirm `fallbackParser` returns a structurally valid result instead of throwing
 - **API collection**: one example request per endpoint, checked into `server/`, used for manual QA
-- **Per-track acceptance**: each track's deliverables should be independently testable before integration (e.g. Track 1's seed script produces sane data; Track 2's `/api/search` returns sorted, sane-looking scores via Postman)
+- **Per-member acceptance**: each member's deliverables should be independently testable before integration (e.g. Kiran's seed script produces sane data; Adarsh's `/api/search` returns sorted, sane-looking scores via Postman)
 - **Final QA pass**: responsive breakpoints, dark-mode contrast, all loading states visible ≥300ms, relaxation ladder triggers and displays correctly on a narrow filter set
 
 ## 16. Key Files Reference
