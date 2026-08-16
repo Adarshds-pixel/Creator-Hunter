@@ -229,31 +229,31 @@ Work is organized into 5 parallel tracks, one owned per team member, so the team
 
 | Member | Title | Responsibilities | Key Deliverables |
 |---|---|---|---|
-| **Kiran** | **Backend Developer** | Express app setup, all Mongoose schemas, JWT auth (register/login/me), password hashing, auth middleware, error handling, seed data generation script | `models/`, `routes/auth.routes.js`, `middleware/auth.middleware.js`, `seed/` |
-| **Adarsh** | **AI/ML Engineer** | Gemini API integration (`aiService.js`), prompt design for all 3 AI calls, `fallbackParser.js`, Match Score & Authenticity Score algorithm design and implementation, query relaxation ladder | `services/aiService.js`, `services/fallbackParser.js`, `services/scoringService.js`, `services/searchService.js` |
-| **Akshay** | **Frontend Developer — UI/UX & Search** | Vite/Tailwind project setup, design system (colors, typography, shadcn primitives), Landing page, Auth pages, Search page, `StagedAILoader`, `FilterChipBar`, `CreatorGrid`/`CreatorCard` | `pages/LandingPage`, `pages/SearchPage`, `components/search/`, `components/creator/CreatorCard.jsx` |
-| **Vishwaradhya** | **Frontend Developer — Data Visualization** | Creator Profile page, `ScoreGauge`, `AudienceCharts` (Recharts), Shortlist page, react-query hooks, axios client + JWT interceptor | `pages/CreatorProfilePage`, `pages/ShortlistPage`, `hooks/`, `lib/apiClient.js` |
+| **Vishwaradhya** | **Backend Developer** | Express app setup, all Mongoose schemas, JWT auth (register/login/me), password hashing, auth middleware, error handling, seed data generation script | `models/`, `routes/auth.routes.js`, `middleware/auth.middleware.js`, `seed/` |
+| **Adarsh** | **Frontend Developer & AI/ML Engineer** | **Frontend (primary):** Landing page, Search page, `StagedAILoader`, `FilterChipBar`, `CreatorGrid`/`CreatorCard`. **AI/ML (split evenly with Akshay):** Match Score & Authenticity Score algorithm design and implementation, query relaxation ladder | `pages/LandingPage`, `pages/SearchPage`, `components/search/StagedAILoader.jsx`, `components/search/FilterChipBar.jsx`, `components/creator/CreatorCard.jsx`, `services/scoringService.js`, `services/searchService.js` |
+| **Akshay** | **Frontend Developer & AI/ML Engineer** | **Frontend (primary):** Vite/Tailwind project setup, design system (colors, typography, shadcn primitives), Auth pages. **AI/ML (split evenly with Adarsh):** Gemini API integration (`aiService.js`), prompt design for all 3 AI calls, `fallbackParser.js` | `pages/LoginPage`, `pages/RegisterPage`, Tailwind/design-system config, `services/aiService.js`, `services/fallbackParser.js` |
+| **Kiran** | **Frontend Developer — Data Visualization** | Creator Profile page, `ScoreGauge`, `AudienceCharts` (Recharts), Shortlist page, react-query hooks, axios client + JWT interceptor | `pages/CreatorProfilePage`, `pages/ShortlistPage`, `hooks/`, `lib/apiClient.js` |
 | **Abhiram** | **QA & Integration Engineer** | Outreach modal, channel tabs, campaign context form, end-to-end integration across all tracks, responsive/polish pass, Postman/Thunder Client collection, README & documentation | `components/outreach/`, integration fixes, `README.md`, API test collection |
 
 *Assignments above are a suggested starting point sized for even workload — the team can freely reassign based on individual interest or skill.*
 
-Kiran and Adarsh form the backend pair and should sync on the `Creator` schema shape early (Adarsh's scoring functions depend on the fields Kiran defines). Akshay, Vishwaradhya, and Abhiram form the frontend group and should agree on the shared design system and API contract (from §7) before diverging into their own pages.
+Vishwaradhya owns the backend foundation and should share the `Creator` schema shape early with Adarsh, since the Match/Authenticity scoring functions depend on the fields Vishwaradhya defines. Adarsh and Akshay co-own both the AI/ML integration and the Search Experience frontend, each taking roughly half of each as detailed above — since their work overlaps within the same two tracks rather than being cleanly separated, they should coordinate closely throughout. Kiran (Data Visualization) and Abhiram (QA & Integration) round out the frontend group and should agree on the shared design system and API contract (from §7) with Akshay before diverging into their own pages.
 
 ## 14. Development Phases
 
 **Phase 1 — Setup & Foundation**
-All members scaffold in parallel: Kiran sets up Express + MongoDB Atlas connection; Adarsh obtains a Gemini API key and drafts prompt schemas; Akshay, Vishwaradhya, and Abhiram set up the Vite client, Tailwind config, routing, and shared design tokens/components.
+All members scaffold in parallel: Vishwaradhya sets up Express + MongoDB Atlas connection; Adarsh and Akshay jointly set up the Vite client, Tailwind config, and shared design system, and obtain a Gemini API key to draft prompt schemas together; Kiran and Abhiram set up their own page scaffolding against the design tokens Adarsh and Akshay establish.
 
 **Phase 2 — Core Feature Development**
 Each member builds their owned module against the agreed API contract, using mock/stub data where a dependency isn't ready yet:
-- Kiran: schemas, auth, seed script (target: 200 creators seeded with computed authenticity scores)
-- Adarsh: `aiService` + `fallbackParser` + `scoringService`/`searchService`, verified via `testGemini.js` / `testScoring.js`
-- Akshay: Landing, Auth pages, Search page + staged loader (against mock search responses)
-- Vishwaradhya: Profile page + charts, Shortlist page (against mock creator data)
+- Vishwaradhya: schemas, auth, seed script (target: 200 creators seeded with computed authenticity scores)
+- Adarsh: Landing page, Search page, `StagedAILoader`, `FilterChipBar`, `CreatorGrid`/`CreatorCard` (frontend) + `scoringService`/`searchService` (AI/ML), verified via `testScoring.js`
+- Akshay: Vite/Tailwind setup, design system, Auth pages (frontend) + `aiService` + `fallbackParser` (AI/ML), verified via `testGemini.js`
+- Kiran: Profile page + charts, Shortlist page (against mock creator data)
 - Abhiram: Outreach modal (against mock outreach responses)
 
 **Phase 3 — Integration**
-Replace mocks with real API calls end-to-end; Abhiram leads integration testing across the full workflow (search → profile → shortlist → outreach).
+Replace mocks with real API calls end-to-end; Adarsh and Akshay integrate their combined AI/ML + frontend search work first since it's owned jointly, then Abhiram leads integration testing across the full workflow (search → profile → shortlist → outreach).
 
 **Phase 4 — Testing, Polish & Documentation**
 Responsive pass (desktop/tablet/mobile breakpoints), empty/error states, loading-state timing, scoring smoke tests, Gemini fallback verification (test with the API key intentionally disabled), final README with setup instructions and architecture overview.
@@ -263,7 +263,7 @@ Responsive pass (desktop/tablet/mobile breakpoints), empty/error states, loading
 - **Scoring smoke tests** (`server/src/scripts/testScoring.js`): hand-picked cases asserting score ranges (e.g. in-budget + city match + high engagement → >85; 3x over-budget → <40 regardless of other factors)
 - **Gemini reliability test** (`server/src/scripts/testGemini.js`): run filter extraction against several example briefs; then disable `GEMINI_API_KEY` and confirm `fallbackParser` returns a structurally valid result instead of throwing
 - **API collection**: one example request per endpoint, checked into `server/`, used for manual QA
-- **Per-member acceptance**: each member's deliverables should be independently testable before integration (e.g. Kiran's seed script produces sane data; Adarsh's `/api/search` returns sorted, sane-looking scores via Postman)
+- **Per-member acceptance**: each member's deliverables should be independently testable before integration (e.g. Vishwaradhya's seed script produces sane data; Adarsh's `/api/search` returns sorted, sane-looking scores via Postman)
 - **Final QA pass**: responsive breakpoints, dark-mode contrast, all loading states visible ≥300ms, relaxation ladder triggers and displays correctly on a narrow filter set
 
 ## 16. Key Files Reference
