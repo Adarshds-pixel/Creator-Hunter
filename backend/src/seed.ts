@@ -207,7 +207,7 @@ async function seed() {
   await connectDB();
 
   await Creator.deleteMany({});
-  const count = 400;
+  const count = 500;
   const creators = Array.from({ length: count }, (_, i) => buildCreator(i));
   await Creator.insertMany(creators);
 

@@ -45,6 +45,9 @@ const outreachSchema = new Schema<IOutreach>(
   { timestamps: true }
 );
 
+outreachSchema.index({ campaignId: 1 });
+outreachSchema.index({ campaignId: 1, creatorId: 1 });
+
 export const OUTREACH_CHANNELS = CHANNELS;
 export const OUTREACH_STATUSES = STATUSES;
 export default mongoose.model<IOutreach>("Outreach", outreachSchema);

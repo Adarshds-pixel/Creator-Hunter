@@ -9,6 +9,7 @@ import {
   campaignCreatorAddSchema,
   campaignCreatorUpdateSchema,
 } from "../middleware/validation.js";
+import { validateObjectId } from "../middleware/objectId.js";
 
 const router = Router();
 
@@ -38,7 +39,7 @@ router.post("/", validateBody(campaignCreateSchema), async (req: Request, res: R
 
 // GET /api/campaigns/:id — enriched with the campaign's CampaignCreator rows,
 // each merged with its Creator document, so the pipeline UI has everything it needs.
-router.get("/:id", async (req: Request, res: Response) => {
+router.get("/:id", validateObjectId("id"), async (req: Request, res: Response) => {
   try {
     const campaign = await Campaign.findById(req.params.id).lean();
     if (!campaign) return res.status(404).json({ error: "Campaign not found" });
@@ -61,7 +62,7 @@ router.get("/:id", async (req: Request, res: Response) => {
 });
 
 // PATCH /api/campaigns/:id
-router.patch("/:id", validateBody(campaignUpdateSchema), async (req: Request, res: Response) => {
+router.patch("/:id", validateObjectId("id"), validateBody(campaignUpdateSchema), async (req: Request, res: Response) => {
   try {
     const campaign = await Campaign.findByIdAndUpdate(req.params.id, req.body, {
       returnDocument: "after",
@@ -75,7 +76,7 @@ router.patch("/:id", validateBody(campaignUpdateSchema), async (req: Request, re
 });
 
 // DELETE /api/campaigns/:id
-router.delete("/:id", async (req: Request, res: Response) => {
+router.delete("/:id", validateObjectId("id"), async (req: Request, res: Response) => {
   try {
     const campaign = await Campaign.findByIdAndDelete(req.params.id);
     if (!campaign) return res.status(404).json({ error: "Campaign not found" });
@@ -90,6 +91,7 @@ router.delete("/:id", async (req: Request, res: Response) => {
 // POST /api/campaigns/:id/creators
 router.post(
   "/:id/creators",
+  validateObjectId("id", "creatorId"),
   validateBody(campaignCreatorAddSchema),
   async (req: Request, res: Response) => {
     try {
@@ -98,22 +100,22 @@ router.post(
 
       const { creatorId, matchScore, status } = req.body;
 
-      // No unique index on (campaignId, creatorId), so dedupe at the app level:
-      // re-adding an already-discovered creator updates it instead of erroring.
-      const existing = await CampaignCreator.findOne({ campaignId: campaign._id, creatorId });
-      if (existing) {
-        if (matchScore != null) existing.matchScore = matchScore;
-        if (status) existing.status = status;
-        await existing.save();
-        return res.json(existing);
-      }
+      // Unique index on (campaignId, creatorId) backstops an upsert, so
+      // re-adding an already-discovered creator updates it instead of creating
+      // a duplicate row.
+      const campaignCreator = await CampaignCreator.findOneAndUpdate(
+        { campaignId: campaign._id, creatorId },
+        {
+          $set: {
+            campaignId: campaign._id,
+            creatorId,
+            matchScore: matchScore ?? 0,
+            status: status ?? "DISCOVERED",
+          },
+        },
+        { upsert: true, returnDocument: "after" }
+      );
 
-      const campaignCreator = await CampaignCreator.create({
-        campaignId: campaign._id,
-        creatorId,
-        matchScore: matchScore ?? 0,
-        status: status ?? "DISCOVERED",
-      });
       res.status(201).json(campaignCreator);
     } catch (err) {
       console.error(err);
@@ -125,6 +127,7 @@ router.post(
 // PATCH /api/campaigns/:id/creators/:creatorId
 router.patch(
   "/:id/creators/:creatorId",
+  validateObjectId("id", "creatorId"),
   validateBody(campaignCreatorUpdateSchema),
   async (req: Request, res: Response) => {
     try {

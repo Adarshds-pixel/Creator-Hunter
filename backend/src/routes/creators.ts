@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import Creator from "../models/Creator.js";
 import { validateBody, creatorCreateSchema } from "../middleware/validation.js";
+import { validateObjectId } from "../middleware/objectId.js";
 
 const router = Router();
 
@@ -59,7 +60,7 @@ router.get("/", async (req: Request, res: Response) => {
 });
 
 // GET /api/creators/:id
-router.get("/:id", async (req: Request, res: Response) => {
+router.get("/:id", validateObjectId("id"), async (req: Request, res: Response) => {
   try {
     const creator = await Creator.findById(req.params.id).lean();
     if (!creator) return res.status(404).json({ error: "Creator not found" });
