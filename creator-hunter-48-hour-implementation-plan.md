@@ -38,17 +38,21 @@ Campaign Pipeline
 
 # 2. Recommended Stack
 
-### Frontend + Backend
+### Frontend
 
-- Next.js
-- React
+- React (Vite)
 - TypeScript
 - Tailwind CSS
 
+### Backend
+
+- Node.js
+- Express.js
+
 ### Database
 
-- PostgreSQL
-- Prisma ORM
+- MongoDB
+- Mongoose ODM
 
 ### AI
 
@@ -57,12 +61,13 @@ Campaign Pipeline
 
 ### Authentication
 
-- Simple email/password authentication for MVP
+- Simple email/password authentication for MVP (JWT-based, via Express middleware)
 
 ### Deployment
 
-- Vercel
-- Managed PostgreSQL
+- Frontend: Vercel/Netlify (React build)
+- Backend: Render/Railway (Express server)
+- Database: MongoDB Atlas
 
 ### Don't use for this demo
 
@@ -110,8 +115,8 @@ Campaign Pipeline
 
 ## Owns
 
-- Prisma
-- PostgreSQL
+- Mongoose
+- MongoDB
 - Database schema
 - API routes
 - Creator APIs
@@ -167,73 +172,99 @@ Campaign Pipeline
 ```text
 creator-hunter/
 │
-├── app/
-│   ├── (auth)/
-│   │   ├── login/
-│   │   └── register/
+├── client/                          (React + Vite frontend)
+│   ├── src/
+│   │   ├── pages/
+│   │   │   ├── auth/
+│   │   │   │   ├── Login.tsx
+│   │   │   │   └── Register.tsx
+│   │   │   │
+│   │   │   ├── Dashboard.tsx
+│   │   │   │
+│   │   │   ├── campaigns/
+│   │   │   │   ├── CampaignList.tsx
+│   │   │   │   ├── NewCampaign.tsx
+│   │   │   │   └── CampaignDetail.tsx
+│   │   │   │
+│   │   │   ├── creators/
+│   │   │   │   ├── CreatorList.tsx
+│   │   │   │   ├── CreatorProfile.tsx
+│   │   │   │   └── CreatorCompare.tsx
+│   │   │   │
+│   │   │   └── shortlists/
+│   │   │       └── Shortlists.tsx
+│   │   │
+│   │   ├── components/
+│   │   │   ├── dashboard/
+│   │   │   ├── creators/
+│   │   │   ├── campaigns/
+│   │   │   ├── search/
+│   │   │   ├── outreach/
+│   │   │   └── ui/
+│   │   │
+│   │   ├── lib/
+│   │   │   ├── apiClient.ts
+│   │   │   └── validation.ts
+│   │   │
+│   │   ├── types/
+│   │   │   ├── creator.ts
+│   │   │   ├── campaign.ts
+│   │   │   └── search.ts
+│   │   │
+│   │   ├── App.tsx
+│   │   └── main.tsx
 │   │
-│   ├── dashboard/
+│   ├── public/
+│   ├── .env
+│   ├── package.json
+│   └── vite.config.ts
+│
+├── server/                          (Node.js + Express backend)
+│   ├── src/
+│   │   ├── routes/
+│   │   │   ├── creators.ts
+│   │   │   ├── search.ts
+│   │   │   ├── campaigns.ts
+│   │   │   ├── shortlists.ts
+│   │   │   ├── outreach.ts
+│   │   │   └── ai.ts
+│   │   │
+│   │   ├── controllers/
+│   │   │
+│   │   ├── models/
+│   │   │   ├── User.ts
+│   │   │   ├── Creator.ts
+│   │   │   ├── Campaign.ts
+│   │   │   ├── CampaignCreator.ts
+│   │   │   ├── Shortlist.ts
+│   │   │   └── Outreach.ts
+│   │   │
+│   │   ├── services/
+│   │   │   ├── ai.ts
+│   │   │   ├── ranking.ts
+│   │   │   └── search.ts
+│   │   │
+│   │   ├── middleware/
+│   │   │   ├── auth.ts
+│   │   │   └── validation.ts
+│   │   │
+│   │   ├── config/
+│   │   │   └── db.ts
+│   │   │
+│   │   ├── seed.ts
+│   │   └── server.ts
 │   │
-│   ├── campaigns/
-│   │   ├── page.tsx
-│   │   ├── new/
-│   │   │   └── page.tsx
-│   │   └── [id]/
-│   │       └── page.tsx
-│   │
-│   ├── creators/
-│   │   ├── page.tsx
-│   │   ├── [id]/
-│   │   │   └── page.tsx
-│   │   └── compare/
-│   │       └── page.tsx
-│   │
-│   ├── shortlists/
-│   │   └── page.tsx
-│   │
-│   └── api/
-│       ├── creators/
-│       ├── search/
-│       ├── campaigns/
-│       ├── shortlists/
-│       ├── outreach/
-│       └── ai/
+│   ├── .env
+│   └── package.json
 │
-├── components/
-│   ├── dashboard/
-│   ├── creators/
-│   ├── campaigns/
-│   ├── search/
-│   ├── outreach/
-│   └── ui/
-│
-├── lib/
-│   ├── prisma.ts
-│   ├── auth.ts
-│   ├── ai.ts
-│   ├── ranking.ts
-│   ├── search.ts
-│   └── validation.ts
-│
-├── prisma/
-│   ├── schema.prisma
-│   └── seed.ts
-│
-├── types/
-│   ├── creator.ts
-│   ├── campaign.ts
-│   └── search.ts
-│
-├── public/
-│
-├── .env
-├── package.json
 └── README.md
 ```
 
 ---
 
 # 10. Database Schema
+
+> Expressed as Mongoose schemas (MongoDB). Ids are MongoDB ObjectIds rather than Prisma-generated ids; field lists below are otherwise unchanged.
 
 ## User
 
@@ -464,6 +495,8 @@ NO_RESPONSE
 ---
 
 # 15. API Structure
+
+> Endpoint paths and request/response shapes below are framework-agnostic and unchanged; they are now implemented as Express routers instead of Next.js API routes.
 
 ## Creator APIs
 
@@ -700,7 +733,7 @@ LLM
 Validation
  │
  ▼
-PostgreSQL
+MongoDB
  │
  ▼
 Ranking Algorithm
@@ -711,7 +744,7 @@ Top Creators
 
 The LLM understands the request.
 
-PostgreSQL determines what creators match.
+MongoDB determines what creators match.
 
 Your ranking algorithm determines their order.
 
@@ -774,7 +807,7 @@ Don't make every creator have excellent metrics.
 ### Hour 0
 
 - Create Git repository
-- Create Next.js project
+- Create React (Vite) client + Express server projects
 - Create branches
 - Decide API contracts
 - Decide database schema
@@ -794,8 +827,8 @@ dev/data
 ### Hour 1
 
 Developer 2:
-- PostgreSQL
-- Prisma
+- MongoDB
+- Mongoose
 
 Developer 1:
 - Layout
@@ -815,11 +848,13 @@ Developer 5:
 Set up:
 
 ```text
-Next.js
+Vite
+React
 TypeScript
 Tailwind
-Prisma
-PostgreSQL
+Express
+MongoDB
+Mongoose
 Zod
 LLM SDK
 Authentication
@@ -830,9 +865,9 @@ Authentication
 Must have:
 
 ```text
-✓ Next.js running
-✓ PostgreSQL connected
-✓ Prisma working
+✓ Client + server running
+✓ MongoDB connected
+✓ Mongoose working
 ✓ Git workflow working
 ✓ Basic UI
 ✓ Environment variables configured
@@ -864,8 +899,8 @@ Search → Results → Profile
 Build:
 
 ```text
-Prisma schema
-Migrations
+Mongoose schemas
+Database connection setup
 Creator CRUD
 Campaign CRUD
 ```
@@ -925,7 +960,7 @@ POST /api/search/creators
    ↓
 AI Filter Parser
    ↓
-PostgreSQL
+MongoDB
    ↓
 Ranking
    ↓
@@ -1147,14 +1182,15 @@ No new major features.
 Deploy:
 
 ```text
-Frontend/API → Vercel
-Database     → Managed PostgreSQL
+Frontend → Vercel/Netlify
+Backend  → Render/Railway
+Database → MongoDB Atlas
 ```
 
 Configure:
 
 ```text
-DATABASE_URL
+MONGODB_URI
 LLM_API_KEY
 AUTH_SECRET
 ```
@@ -1162,7 +1198,7 @@ AUTH_SECRET
 Run:
 
 ```bash
-npx prisma migrate deploy
+node server/src/seed.ts
 ```
 
 Seed production data.
@@ -1310,7 +1346,7 @@ Shortlisted → Contacted
 - [ ] Creator database contains 500+ records
 - [ ] Natural-language search works
 - [ ] AI extracts filters
-- [ ] Filters query PostgreSQL
+- [ ] Filters query MongoDB
 - [ ] Results are ranked
 - [ ] Creator profile works
 - [ ] Audience analytics work
