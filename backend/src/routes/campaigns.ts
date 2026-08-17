@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import Campaign from "../models/Campaign.js";
-import CampaignCreator from "../models/CampaignCreator.js";
+import CampaignCreator, { CAMPAIGN_CREATOR_STATUSES } from "../models/CampaignCreator.js";
 import Creator from "../models/Creator.js";
 import {
   validateBody,
@@ -12,13 +12,62 @@ import {
 
 const router = Router();
 
+// Normalize against COMPLETED's index, not the array's last entry — REJECTED
+// sits after COMPLETED in the enum but isn't "further along" the pipeline,
+// it's a different terminal branch. Treat REJECTED as equally "resolved"
+// (same index as COMPLETED) rather than letting it silently deflate every
+// campaign's progress toward a status that was never actually the goal.
+const COMPLETED_INDEX = CAMPAIGN_CREATOR_STATUSES.indexOf("COMPLETED");
+
+function stageProgressIndex(status: string): number {
+  if (status === "REJECTED") return COMPLETED_INDEX;
+  const idx = CAMPAIGN_CREATOR_STATUSES.indexOf(status as (typeof CAMPAIGN_CREATOR_STATUSES)[number]);
+  return idx === -1 ? 0 : idx;
+}
+
 // GET /api/campaigns
+// Enriched with per-campaign creatorsCount/reach/progress, joined from
+// CampaignCreator + Creator — the card grid needs real numbers, not a
+// second round-trip per card. progress = avg pipeline-stage index / max
+// stage index across that campaign's CampaignCreator rows (0 when there
+// are none yet — an honest empty state, not hidden).
 router.get("/", async (req: Request, res: Response) => {
   try {
     const { status } = req.query;
     const filter = typeof status === "string" && status ? { status } : {};
     const campaigns = await Campaign.find(filter).sort({ createdAt: -1 }).lean();
-    res.json(campaigns);
+
+    const campaignIds = campaigns.map((c) => c._id);
+    const ccRows = await CampaignCreator.find({ campaignId: { $in: campaignIds } })
+      .select("campaignId creatorId status")
+      .lean();
+
+    const creatorIds = [...new Set(ccRows.map((cc) => String(cc.creatorId)))];
+    const creators = await Creator.find({ _id: { $in: creatorIds } }).select("followers").lean();
+    const followersById = new Map(creators.map((c) => [String(c._id), c.followers ?? 0]));
+
+    const rowsByCampaign = new Map<string, typeof ccRows>();
+    for (const cc of ccRows) {
+      const key = String(cc.campaignId);
+      const list = rowsByCampaign.get(key) ?? [];
+      list.push(cc);
+      rowsByCampaign.set(key, list);
+    }
+
+    const enriched = campaigns.map((c) => {
+      const rows = rowsByCampaign.get(String(c._id)) ?? [];
+      const creatorsCount = rows.length;
+      const reach = rows.reduce((sum, r) => sum + (followersById.get(String(r.creatorId)) ?? 0), 0);
+      const progress = creatorsCount
+        ? Math.round(
+            (100 * rows.reduce((sum, r) => sum + stageProgressIndex(r.status), 0)) /
+              (creatorsCount * COMPLETED_INDEX)
+          )
+        : 0;
+      return { ...c, creatorsCount, reach, progress };
+    });
+
+    res.json(enriched);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to fetch campaigns" });

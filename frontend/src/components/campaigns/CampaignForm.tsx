@@ -55,14 +55,14 @@ export function CampaignForm({ onSubmit }: CampaignFormProps) {
     <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       {FIELDS.map((field) => (
         <div key={field.key} className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-gray-700">{field.label}</label>
+          <label className="text-sm font-medium text-ink-secondary">{field.label}</label>
           <input
             value={values[field.key]}
             onChange={handleChange(field.key)}
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+            className="rounded-md border-[0.5px] border-border bg-surface px-3 py-2 text-sm text-ink focus:border-teal focus:outline-none"
           />
           {errors[field.key] && (
-            <span className="text-xs text-red-600">{errors[field.key]?.[0]}</span>
+            <span className="text-xs text-caution">{errors[field.key]?.[0]}</span>
           )}
         </div>
       ))}

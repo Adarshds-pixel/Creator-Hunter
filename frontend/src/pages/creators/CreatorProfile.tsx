@@ -1,225 +1,443 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams, Link } from "react-router-dom";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
-import { ScoreGauge } from "../../components/creators/ScoreGauge";
-import { fetchCreator, fetchCreatorAnalysis, addCreatorToDefaultShortlist } from "../../lib/apiClient";
-import type { Creator, CreatorAnalysis } from "../../types/creator";
+import { Select } from "../../components/ui/Select";
+import { Skeleton } from "../../components/ui/Skeleton";
+import { Modal } from "../../components/ui/Modal";
+import { EmptyState } from "../../components/ui/EmptyState";
+import { ScoreBreakdown } from "../../components/scoring/ScoreBreakdown";
+import { CreatorScoreCard } from "../../components/scoring/CreatorScoreCard";
+import {
+  fetchCreator,
+  fetchCreatorAnalysis,
+  addCreatorToDefaultShortlist,
+  fetchCampaigns,
+  addCreatorToCampaign,
+} from "../../lib/apiClient";
+import { formatFollowers, formatINR, formatPercent } from "../../lib/format";
+import type { Creator, CreatorAnalysis, MatchBreakdown } from "../../types/creator";
+import type { Campaign } from "../../types/campaign";
 
-const TABS = ["Overview", "Audience", "Engagement", "Authenticity", "AI Analysis"] as const;
-type Tab = (typeof TABS)[number];
+function isAllZero(values: MatchBreakdown): boolean {
+  return Object.values(values).every((v) => !v);
+}
+
+function initials(name: string): string {
+  return name
+    .split(" ")
+    .map((part) => part[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+}
+
+// Module-level, not component state: survives unmount/remount (navigating
+// to a profile, away, and back doesn't re-spend Gemini quota on an
+// identical request) and dedupes StrictMode's dev-mode double-mount into
+// one real network call instead of two.
+const analysisCache = new Map<string, Promise<CreatorAnalysis>>();
+
+function loadAnalysisCached(id: string, force = false): Promise<CreatorAnalysis> {
+  if (force || !analysisCache.has(id)) {
+    const request = fetchCreatorAnalysis(id);
+    analysisCache.set(id, request);
+    request.catch(() => analysisCache.delete(id)); // don't cache a failure
+  }
+  return analysisCache.get(id)!;
+}
 
 // Member B — Creator Intelligence
 export default function CreatorProfile() {
   const { id } = useParams<{ id: string }>();
-  const [activeTab, setActiveTab] = useState<Tab>("Overview");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const campaignId = searchParams.get("campaignId") ?? "";
+
   const [creator, setCreator] = useState<Creator | null>(null);
   const [creatorError, setCreatorError] = useState<string | null>(null);
+
   const [analysis, setAnalysis] = useState<CreatorAnalysis | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+
   const [shortlisted, setShortlisted] = useState(false);
+  const [shortlistError, setShortlistError] = useState<string | null>(null);
+
+  const [campaignModalOpen, setCampaignModalOpen] = useState(false);
+  const [campaigns, setCampaigns] = useState<Campaign[] | null>(null);
+  const [addedCampaignId, setAddedCampaignId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
-    fetchCreator(id)
+    fetchCreator(id, campaignId || undefined)
       .then(setCreator)
-      .catch(() => setCreatorError("Could not load this creator."));
-  }, [id]);
+      .catch(() => setCreatorError("Could not load this creator. Check your connection and reload."));
+  }, [id, campaignId]);
 
-  async function loadAnalysis() {
+  // Powers the "Score against" select: campaigns are needed as soon as the
+  // rail renders, not just when the add-to-campaign modal opens.
+  useEffect(() => {
+    fetchCampaigns()
+      .then(setCampaigns)
+      .catch(() => setCampaigns([]));
+  }, []);
+
+  function handleScoreAgainstChange(value: string) {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (value) next.set("campaignId", value);
+        else next.delete("campaignId");
+        return next;
+      },
+      { replace: true }
+    );
+  }
+
+  async function loadAnalysis(ignore?: { current: boolean }, force = false) {
     if (!id) return;
-    setLoading(true);
-    setError(null);
+    setAnalysisLoading(true);
+    setAnalysisError(null);
     try {
-      const data = await fetchCreatorAnalysis(id);
-      setAnalysis(data);
+      const data = await loadAnalysisCached(id, force);
+      if (!ignore?.current) setAnalysis(data);
     } catch {
-      setError("Could not generate analysis yet.");
+      if (!ignore?.current) {
+        setAnalysisError("Could not generate an analysis. Try regenerating — this call can occasionally time out.");
+      }
     } finally {
-      setLoading(false);
+      if (!ignore?.current) setAnalysisLoading(false);
     }
   }
 
+  // Loads on mount, not behind a click — an empty card isn't a real state.
+  // StrictMode double-invokes this effect in dev, firing two real API
+  // calls; the ignore flag makes sure only the still-current one commits
+  // to state, so a slower stale response can't clobber a fresher result.
+  useEffect(() => {
+    const ignore = { current: false };
+    if (id) loadAnalysis(ignore);
+    return () => {
+      ignore.current = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
   async function handleShortlist() {
+    setShortlistError(null);
     if (!id) return;
     try {
       await addCreatorToDefaultShortlist(id);
       setShortlisted(true);
     } catch {
-      setCreatorError("Could not add to shortlist.");
+      setShortlistError("Could not add to shortlist. Try again.");
     }
   }
 
-  return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-gray-900">{creator?.name ?? "Creator Profile"}</h1>
-          {creator && (
-            <p className="text-sm text-gray-500">
-              @{creator.username} · {creator.platform} · {creator.category}
-            </p>
-          )}
+  function openCampaignModal() {
+    setCampaignModalOpen(true);
+  }
+
+  async function handleAddToCampaign(campaignId: string) {
+    if (!id) return;
+    await addCreatorToCampaign(campaignId, { creatorId: id });
+    setAddedCampaignId(campaignId);
+  }
+
+  if (creatorError) {
+    return <p className="py-6 text-sm text-caution">{creatorError}</p>;
+  }
+
+  if (!creator) {
+    return (
+      <div className="flex gap-6 py-6">
+        <Skeleton className="h-96 w-80 shrink-0" />
+        <div className="flex-1 space-y-4">
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-48 w-full" />
         </div>
-        {creator && (
-          <Button variant="outline" onClick={handleShortlist} disabled={shortlisted}>
-            {shortlisted ? "Shortlisted" : "Add to shortlist"}
-          </Button>
-        )}
       </div>
+    );
+  }
 
-      {creatorError && <p className="text-sm text-red-600">{creatorError}</p>}
-
-      <div className="flex gap-4 border-b border-gray-200 text-sm">
-        {TABS.map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`pb-2 ${
-              activeTab === tab
-                ? "border-b-2 border-indigo-600 font-medium text-indigo-600"
-                : "text-gray-500"
-            }`}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
-
-      {activeTab === "Overview" && (
+  return (
+    <div className="flex gap-6 py-6">
+      {/* Sticky rail */}
+      <aside className="sticky top-6 h-fit w-80 shrink-0 space-y-4">
         <Card className="space-y-3">
-          {creator ? (
-            <>
-              <p className="text-sm text-gray-700">{creator.bio ?? "No bio available."}</p>
-              <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
-                <Stat label="Location" value={creator.location ?? "—"} />
-                <Stat label="Followers" value={creator.followers.toLocaleString()} />
-                <Stat label="Following" value={creator.following?.toLocaleString() ?? "—"} />
-                <Stat label="Posts" value={creator.posts?.toLocaleString() ?? "—"} />
-                <Stat label="Est. cost" value={`₹${creator.estimatedCost.toLocaleString()}`} />
-                <Stat
-                  label="Growth rate"
-                  value={creator.growthRate != null ? `${creator.growthRate}%` : "—"}
-                />
-              </div>
-            </>
-          ) : (
-            <p className="text-sm text-gray-500">Loading creator...</p>
-          )}
-        </Card>
-      )}
-
-      {activeTab === "Audience" && (
-        <Card className="space-y-4">
-          {creator ? (
-            <>
-              <div>
-                <p className="mb-1 text-sm font-medium text-gray-900">Gender</p>
-                <BarRow label="Male" value={creator.audienceMale} />
-                <BarRow label="Female" value={creator.audienceFemale} />
-              </div>
-              <div>
-                <p className="mb-1 text-sm font-medium text-gray-900">Age</p>
-                <BarRow label="18-24" value={creator.age18_24} />
-                <BarRow label="25-34" value={creator.age25_34} />
-                <BarRow label="35-44" value={creator.age35_44} />
-                <BarRow label="45+" value={creator.age45Plus} />
-              </div>
-              <div>
-                <p className="mb-1 text-sm font-medium text-gray-900">Country</p>
-                <BarRow label="India" value={creator.audienceIndia} />
-                <BarRow label="USA" value={creator.audienceUSA} />
-                <BarRow label="UAE" value={creator.audienceUAE} />
-                <BarRow label="UK" value={creator.audienceUK} />
-                <BarRow label="Other" value={creator.audienceOther} />
-              </div>
-            </>
-          ) : (
-            <p className="text-sm text-gray-500">Loading audience data...</p>
-          )}
-        </Card>
-      )}
-
-      {activeTab === "Engagement" && (
-        <Card>
-          {creator ? (
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <ScoreGauge label="Engagement" value={`${creator.engagementRate}%`} />
-              <Stat label="Avg likes" value={creator.avgLikes?.toLocaleString() ?? "—"} />
-              <Stat label="Avg comments" value={creator.avgComments?.toLocaleString() ?? "—"} />
-              <Stat label="Avg views" value={creator.avgViews.toLocaleString()} />
+          <div className="flex items-center gap-3">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-pill bg-teal-soft font-data text-sm font-semibold text-teal">
+              {initials(creator.name)}
             </div>
-          ) : (
-            <p className="text-sm text-gray-500">Loading engagement metrics...</p>
-          )}
-        </Card>
-      )}
-
-      {activeTab === "Authenticity" && (
-        <Card className="flex items-center gap-6">
-          <ScoreGauge label="Authenticity" value={creator?.authenticityScore ?? "--"} />
-          <ScoreGauge label="Audience quality" value={creator?.audienceQualityScore ?? "--"} />
-          <p className="text-sm text-gray-500">
-            Higher scores indicate a more authentic, higher-quality audience.
+            <div className="min-w-0">
+              <p className="truncate font-semibold text-ink">{creator.name}</p>
+              <p className="truncate text-sm text-ink-secondary">
+                @{creator.username} · {creator.platform}
+              </p>
+            </div>
+          </div>
+          <p className="text-sm text-ink-secondary">
+            {creator.category}
+            {creator.location ? ` · ${creator.location}` : ""}
           </p>
         </Card>
-      )}
 
-      {activeTab === "AI Analysis" && (
-        <Card className="space-y-4">
-          <Button onClick={loadAnalysis} disabled={loading}>
-            {loading ? "Analyzing..." : "Why is this creator a good fit?"}
+        <Card className="space-y-2">
+          <Select
+            label="Score against"
+            value={campaignId}
+            onChange={(e) => handleScoreAgainstChange(e.target.value)}
+          >
+            <option value="">Creator score (no campaign)</option>
+            {campaigns?.map((c) => (
+              <option key={c._id} value={c._id}>
+                {c.name}
+              </option>
+            ))}
+          </Select>
+          {campaignId && (
+            <Link to={`/campaigns/${campaignId}`} className="text-xs font-medium text-teal hover:underline">
+              View campaign →
+            </Link>
+          )}
+        </Card>
+
+        {campaignId && creator.matchBreakdown && !isAllZero(creator.matchBreakdown) ? (
+          <ScoreBreakdown matchScore={creator.matchScore ?? 0} breakdown={creator.matchBreakdown} />
+        ) : creator.creatorScoreBreakdown ? (
+          <CreatorScoreCard creatorScore={creator.creatorScore ?? 0} breakdown={creator.creatorScoreBreakdown} />
+        ) : (
+          <EmptyState title="No score yet" description="Not enough data to compute a score for this creator." />
+        )}
+
+        <Card className="flex items-center justify-between">
+          <span className="text-sm text-ink-secondary">Est. cost</span>
+          <span className="font-data text-lg font-semibold tabular-nums text-ink">
+            {formatINR(creator.estimatedCost)}
+          </span>
+        </Card>
+
+        <div className="flex flex-col gap-2">
+          <Button variant={shortlisted ? "secondary" : "primary"} onClick={handleShortlist} disabled={shortlisted}>
+            {shortlisted ? "Added to shortlist" : "Add to shortlist"}
           </Button>
+          <Button variant="outline" onClick={openCampaignModal}>
+            Add to campaign
+          </Button>
+          {shortlistError && <p className="text-xs text-caution">{shortlistError}</p>}
+        </div>
+      </aside>
 
-          {error && <p className="text-sm text-red-600">{error}</p>}
+      {/* Main column */}
+      <div className="min-w-0 flex-1 space-y-4">
+        <Card>
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold uppercase tracking-wide text-steel-500">AI analysis</p>
+            {!analysisLoading && (
+              <button
+                onClick={() => loadAnalysis(undefined, true)}
+                className="text-xs font-medium text-teal hover:underline"
+              >
+                Regenerate
+              </button>
+            )}
+          </div>
 
-          {analysis && (
-            <div className="space-y-3 text-sm">
-              <p className="text-gray-900">{analysis.summary}</p>
-              <div>
-                <p className="font-medium text-gray-900">Strengths</p>
-                <ul className="list-inside list-disc text-gray-600">
-                  {analysis.strengths?.map((s) => (
-                    <li key={s}>{s}</li>
-                  ))}
-                </ul>
+          {analysisLoading && (
+            <div className="mt-3 space-y-2">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-5/6" />
+              <Skeleton className="h-4 w-3/4" />
+              <p className="pt-1 text-xs text-steel-500">
+                Generating a data-grounded analysis — this can take up to 20 seconds.
+              </p>
+            </div>
+          )}
+
+          {analysisError && !analysisLoading && (
+            <p className="mt-3 text-sm text-caution">{analysisError}</p>
+          )}
+
+          {analysis && !analysisLoading && (
+            <div className="mt-3 space-y-3 text-sm">
+              <p className="text-ink">{analysis.summary}</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-match">Strengths</p>
+                  <ul className="list-inside list-disc space-y-1 text-ink-secondary">
+                    {analysis.strengths?.map((s) => <li key={s}>{s}</li>)}
+                  </ul>
+                </div>
+                <div>
+                  <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-caution">Weaknesses</p>
+                  <ul className="list-inside list-disc space-y-1 text-ink-secondary">
+                    {analysis.weaknesses?.map((w) => <li key={w}>{w}</li>)}
+                  </ul>
+                </div>
               </div>
-              <div>
-                <p className="font-medium text-gray-900">Weaknesses</p>
-                <ul className="list-inside list-disc text-gray-600">
-                  {analysis.weaknesses?.map((w) => (
-                    <li key={w}>{w}</li>
-                  ))}
-                </ul>
-              </div>
-              <p className="font-medium text-indigo-600">{analysis.recommendation}</p>
+              <p className="border-t-[0.5px] border-border pt-3 font-medium text-teal">{analysis.recommendation}</p>
             </div>
           )}
         </Card>
-      )}
+
+        <Card>
+          <p className="mb-3 text-sm font-semibold uppercase tracking-wide text-steel-500">Key metrics</p>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            <Metric label="Followers" value={formatFollowers(creator.followers)} />
+            <Metric label="Engagement" value={formatPercent(creator.engagementRate)} />
+            <Metric label="Avg views" value={formatFollowers(creator.avgViews)} />
+            <Metric label="Avg likes" value={creator.avgLikes != null ? formatFollowers(creator.avgLikes) : "—"} />
+            <Metric
+              label="Avg comments"
+              value={creator.avgComments != null ? formatFollowers(creator.avgComments) : "—"}
+            />
+            <Metric
+              label="Growth rate"
+              value={creator.growthRate != null ? formatPercent(creator.growthRate, { signed: true }) : "—"}
+            />
+          </div>
+        </Card>
+
+        <Card>
+          <p className="mb-3 text-sm font-semibold uppercase tracking-wide text-steel-500">Audience</p>
+          <div className="grid gap-6 sm:grid-cols-3">
+            <AudienceGroup
+              title="Gender"
+              rows={[
+                { label: "Male", value: creator.audienceMale },
+                { label: "Female", value: creator.audienceFemale },
+              ]}
+            />
+            <AudienceGroup
+              title="Age"
+              rows={[
+                { label: "18-24", value: creator.age18_24 },
+                { label: "25-34", value: creator.age25_34 },
+                { label: "35-44", value: creator.age35_44 },
+                { label: "45+", value: creator.age45Plus },
+              ]}
+            />
+            <AudienceGroup
+              title="Country"
+              rows={[
+                { label: "India", value: creator.audienceIndia },
+                { label: "USA", value: creator.audienceUSA },
+                { label: "UAE", value: creator.audienceUAE },
+                { label: "UK", value: creator.audienceUK },
+                { label: "Other", value: creator.audienceOther },
+              ]}
+            />
+          </div>
+        </Card>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Card>
+            <p className="mb-3 text-sm font-semibold uppercase tracking-wide text-steel-500">Engagement</p>
+            <div className="grid grid-cols-2 gap-4">
+              <Metric label="Engagement rate" value={formatPercent(creator.engagementRate)} />
+              <Metric label="Avg likes" value={creator.avgLikes != null ? formatFollowers(creator.avgLikes) : "—"} />
+              <Metric
+                label="Avg comments"
+                value={creator.avgComments != null ? formatFollowers(creator.avgComments) : "—"}
+              />
+              <Metric label="Avg views" value={formatFollowers(creator.avgViews)} />
+            </div>
+          </Card>
+          <Card>
+            <p className="mb-3 text-sm font-semibold uppercase tracking-wide text-steel-500">Authenticity</p>
+            <div className="flex items-center gap-6">
+              <Metric label="Authenticity" value={String(creator.authenticityScore)} />
+              <Metric
+                label="Audience quality"
+                value={creator.audienceQualityScore != null ? String(creator.audienceQualityScore) : "—"}
+              />
+            </div>
+            <p className="mt-3 text-xs text-ink-secondary">
+              Higher scores indicate a more authentic following and a higher-quality, less bot-heavy audience.
+            </p>
+          </Card>
+        </div>
+      </div>
+
+      <Modal
+        open={campaignModalOpen}
+        onOpenChange={setCampaignModalOpen}
+        title="Add to campaign"
+        description={`Choose a campaign to add ${creator.name} to.`}
+      >
+        {campaigns === null && (
+          <div className="space-y-2">
+            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-9 w-full" />
+          </div>
+        )}
+        {campaigns?.length === 0 && (
+          <EmptyState
+            title="No campaigns yet"
+            description="Create a campaign to add this creator to it."
+            action={
+              <Link to="/campaigns/new" className="text-sm font-medium text-teal hover:underline">
+                New campaign →
+              </Link>
+            }
+          />
+        )}
+        {campaigns && campaigns.length > 0 && (
+          <ul className="space-y-2">
+            {campaigns.map((campaign) => (
+              <li key={campaign._id}>
+                <button
+                  onClick={() => campaign._id && handleAddToCampaign(campaign._id)}
+                  disabled={addedCampaignId === campaign._id}
+                  className="flex w-full items-center justify-between rounded-control border-[0.5px] border-border px-3 py-2 text-left text-sm hover:bg-steel-100 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <span className="text-ink">{campaign.name}</span>
+                  <span className="text-xs text-steel-500">
+                    {addedCampaignId === campaign._id ? "Added" : campaign.brand ?? "—"}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Modal>
     </div>
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="font-semibold text-gray-900">{value}</p>
-      <p className="text-gray-500">{label}</p>
+      <p className="font-data text-base font-medium tabular-nums text-ink">{value}</p>
+      <p className="text-xs text-ink-secondary">{label}</p>
     </div>
   );
 }
 
-function BarRow({ label, value }: { label: string; value?: number }) {
-  const pct = value ?? 0;
+function AudienceGroup({ title, rows }: { title: string; rows: { label: string; value?: number }[] }) {
+  const withValues = rows.map((r) => ({ ...r, value: r.value ?? 0 }));
+  const max = Math.max(...withValues.map((r) => r.value));
+
   return (
-    <div className="mb-1 flex items-center gap-2 text-xs">
-      <span className="w-16 text-gray-500">{label}</span>
-      <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-100">
-        <div className="h-full rounded-full bg-indigo-500" style={{ width: `${pct}%` }} />
+    <div className="max-w-[320px]">
+      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-steel-500">{title}</p>
+      <div className="space-y-1.5">
+        {withValues.map((row) => {
+          const isDominant = row.value === max && max > 0;
+          return (
+            <div key={row.label} className="flex items-center gap-2 text-xs">
+              <span className="w-14 shrink-0 text-ink-secondary">{row.label}</span>
+              <div className="h-2 flex-1 overflow-hidden rounded-pill bg-steel-100">
+                <div
+                  className={`h-full rounded-pill ${isDominant ? "bg-teal" : "bg-steel-300"}`}
+                  style={{ width: `${row.value}%` }}
+                />
+              </div>
+              <span className="w-9 shrink-0 text-right font-data tabular-nums text-ink">{Math.round(row.value)}%</span>
+            </div>
+          );
+        })}
       </div>
-      <span className="w-10 text-right text-gray-500">{pct}%</span>
     </div>
   );
 }

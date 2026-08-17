@@ -81,8 +81,8 @@ export default function CampaignDetail() {
     await load();
   }
 
-  if (error) return <p className="p-6 text-sm text-red-600">{error}</p>;
-  if (!campaign) return <p className="p-6 text-sm text-gray-500">Loading campaign...</p>;
+  if (error) return <p className="p-6 text-sm text-caution">{error}</p>;
+  if (!campaign) return <p className="p-6 text-sm text-ink-secondary">Loading campaign...</p>;
 
   const grouped = new Map<string, CampaignCreator[]>();
   for (const stage of PIPELINE_STAGES) grouped.set(stage, []);
@@ -94,21 +94,21 @@ export default function CampaignDetail() {
   return (
     <div className="space-y-6 p-6">
       <div>
-        <h1 className="text-xl font-semibold text-gray-900">{campaign.name}</h1>
-        <p className="text-sm text-gray-500">
+        <h1 className="text-xl font-semibold text-ink">{campaign.name}</h1>
+        <p className="text-sm text-ink-secondary">
           {campaign.brand ?? "—"} · {campaign.status ?? "DRAFT"} · Budget ₹
           {campaign.budget?.toLocaleString() ?? "—"}
         </p>
       </div>
 
       <Card className="space-y-3">
-        <p className="text-sm font-medium text-gray-900">Add creators to this campaign</p>
+        <p className="text-sm font-medium text-ink">Add creators to this campaign</p>
         <div className="flex gap-2">
           <input
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Category, e.g. Fitness"
-            className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+            className="flex-1 rounded-md border-[0.5px] border-border bg-surface px-3 py-2 text-sm text-ink focus:border-teal focus:outline-none"
           />
           <Button onClick={handleAddSearch} disabled={searching}>
             {searching ? "Searching..." : "Search"}
@@ -119,7 +119,7 @@ export default function CampaignDetail() {
             {searchResults.map((creator) => (
               <div
                 key={creator._id}
-                className="flex items-center justify-between rounded-md border border-gray-200 px-3 py-2 text-sm"
+                className="flex items-center justify-between rounded-md border-[0.5px] border-border px-3 py-2 text-sm text-ink"
               >
                 <span>{creator.name}</span>
                 <Button variant="outline" onClick={() => handleAddCreator(creator)} className="text-xs">
@@ -135,21 +135,21 @@ export default function CampaignDetail() {
         {PIPELINE_STAGES.map((stage) => (
           <Card key={stage} className="space-y-2">
             <div className="text-center">
-              <p className="text-xs font-medium text-gray-500">{stage}</p>
-              <p className="mt-1 text-lg font-semibold text-gray-900">
+              <p className="text-xs font-medium text-ink-secondary">{stage}</p>
+              <p className="mt-1 text-lg font-semibold text-ink">
                 {grouped.get(stage)?.length ?? 0}
               </p>
             </div>
             <div className="space-y-1">
               {grouped.get(stage)?.map((cc) => (
-                <div key={cc._id} className="rounded-md border border-gray-200 p-2 text-xs">
-                  <p className="font-medium text-gray-900">{cc.creator?.name ?? "Unknown"}</p>
-                  <p className="text-gray-500">{cc.matchScore}% match</p>
+                <div key={cc._id} className="rounded-md border-[0.5px] border-border p-2 text-xs">
+                  <p className="font-medium text-ink">{cc.creator?.name ?? "Unknown"}</p>
+                  <p className="text-ink-secondary">{cc.matchScore}% match</p>
                   <div className="mt-1 flex flex-wrap gap-1">
                     {stage === "SHORTLISTED" && (
                       <button
                         onClick={() => setActiveOutreachCreatorId(cc.creatorId)}
-                        className="rounded bg-indigo-50 px-2 py-0.5 text-indigo-700 hover:bg-indigo-100"
+                        className="rounded bg-teal-soft px-2 py-0.5 text-teal hover:bg-teal-soft/70"
                       >
                         Outreach
                       </button>
@@ -157,7 +157,7 @@ export default function CampaignDetail() {
                     {stage !== "COMPLETED" && (
                       <button
                         onClick={() => handleAdvance(cc, nextStage(stage))}
-                        className="rounded bg-gray-100 px-2 py-0.5 text-gray-700 hover:bg-gray-200"
+                        className="rounded bg-steel-100 px-2 py-0.5 text-ink-secondary hover:bg-steel-300/60"
                       >
                         Advance
                       </button>
@@ -172,7 +172,7 @@ export default function CampaignDetail() {
 
       {activeOutreachCreatorId && id && (
         <Card>
-          <p className="mb-2 text-sm font-medium text-gray-900">Outreach</p>
+          <p className="mb-2 text-sm font-medium text-ink">Outreach</p>
           <OutreachPanel
             creatorId={activeOutreachCreatorId}
             campaignId={id}

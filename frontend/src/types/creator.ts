@@ -7,6 +7,15 @@ export interface MatchBreakdown {
   price: number;
 }
 
+// Campaign-independent — mirrors backend/src/services/ranking.ts's
+// CreatorScoreBreakdown exactly.
+export interface CreatorScoreBreakdown {
+  engagement: number;
+  authenticity: number;
+  audienceQuality: number;
+  growth: number;
+}
+
 export interface Creator {
   _id: string;
   name: string;
@@ -17,6 +26,9 @@ export interface Creator {
   bio?: string;
 
   category: string;
+  title?: string;
+  tags: string[];
+  verified: boolean;
   location?: string;
   country?: string;
   city?: string;
@@ -53,6 +65,9 @@ export interface Creator {
 
   matchScore?: number;
   matchBreakdown?: MatchBreakdown;
+
+  creatorScore?: number;
+  creatorScoreBreakdown?: CreatorScoreBreakdown;
 }
 
 export interface CreatorAnalysis {

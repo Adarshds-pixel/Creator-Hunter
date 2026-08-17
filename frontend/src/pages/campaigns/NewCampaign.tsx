@@ -26,12 +26,12 @@ export default function NewCampaign() {
 
   return (
     <div className="space-y-6 p-6">
-      <h1 className="text-xl font-semibold text-gray-900">New Campaign</h1>
+      <h1 className="text-xl font-semibold text-ink">New Campaign</h1>
       <Card>
         <CampaignForm onSubmit={handleSubmit} />
       </Card>
-      {submitting && <p className="text-sm text-gray-500">Creating campaign...</p>}
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {submitting && <p className="text-sm text-ink-secondary">Creating campaign...</p>}
+      {error && <p className="text-sm text-caution">{error}</p>}
     </div>
   );
 }

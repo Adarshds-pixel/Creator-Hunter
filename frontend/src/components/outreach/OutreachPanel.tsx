@@ -108,10 +108,10 @@ export function OutreachPanel({
         {loading ? "Generating..." : "Generate Outreach"}
       </Button>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-caution">{error}</p>}
 
       {message && (
-        <div className="rounded-md border border-gray-200 bg-gray-50 p-3 text-sm text-gray-800">
+        <div className="rounded-md border-[0.5px] border-border bg-steel-100 p-3 text-sm text-ink">
           {message}
         </div>
       )}
@@ -124,12 +124,12 @@ export function OutreachPanel({
 
       {outreachId && (
         <div className="flex flex-wrap items-center gap-2 text-sm">
-          <span className="font-medium text-gray-700">Status: {status}</span>
+          <span className="font-medium text-ink-secondary">Status: {status}</span>
           {REPLY_STATUSES.filter((s) => s !== status).map((s) => (
             <button
               key={s}
               onClick={() => handleStatusUpdate(s)}
-              className="rounded bg-gray-100 px-2 py-1 text-xs text-gray-700 hover:bg-gray-200"
+              className="rounded bg-steel-100 px-2 py-1 text-xs text-ink-secondary hover:bg-steel-300/60"
             >
               Mark {s}
             </button>

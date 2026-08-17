@@ -73,6 +73,18 @@ router.post(
   }
 );
 
+// DELETE /api/shortlists/:id
+router.delete("/:id", async (req: Request, res: Response) => {
+  try {
+    const shortlist = await Shortlist.findByIdAndDelete(req.params.id);
+    if (!shortlist) return res.status(404).json({ error: "Shortlist not found" });
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to delete shortlist" });
+  }
+});
+
 // DELETE /api/shortlists/:id/creators/:creatorId
 router.delete("/:id/creators/:creatorId", async (req: Request, res: Response) => {
   try {

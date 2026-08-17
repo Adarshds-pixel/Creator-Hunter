@@ -9,6 +9,7 @@ import shortlistsRouter from "./routes/shortlists.js";
 import outreachRouter from "./routes/outreach.js";
 import searchRouter from "./routes/search.js";
 import aiRouter from "./routes/ai.js";
+import statsRouter from "./routes/stats.js";
 
 dotenv.config();
 
@@ -23,6 +24,7 @@ app.use("/api/shortlists", shortlistsRouter);
 app.use("/api/outreach", outreachRouter);
 app.use("/api/search", searchRouter);
 app.use("/api/ai", aiRouter);
+app.use("/api/stats", statsRouter);
 
 app.get("/api/health", (_req: Request, res: Response) => {
   res.json({ status: "ok" });

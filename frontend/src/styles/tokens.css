@@ -1,0 +1,104 @@
+/*
+ * Design tokens — single source of truth for color, type, radius and
+ * spacing. Tailwind v4 generates utilities directly from this @theme
+ * block (bg-ink, text-teal, font-ui, rounded-card, etc.) as real CSS
+ * custom properties, not inlined values — so the [data-theme="dark"]
+ * block below can override the same variable names at runtime to
+ * re-theme every utility with no component changes.
+ */
+@theme {
+  /* Core palette (light values — default) */
+  --color-ink: #12141c;
+  --color-ink-secondary: #52525b;
+  --color-teal: #0b6e76;
+  --color-teal-soft: #e3f0f0;
+  --color-match: #227a55;
+  --color-match-soft: #e5f3ec;
+  --color-caution: #9a6300;
+  --color-caution-soft: #faf1de;
+  --color-paper: #fafaf9;
+  --color-surface: #ffffff;
+  --color-border: rgba(0, 0, 0, 0.08);
+  --color-border-strong: rgba(0, 0, 0, 0.16);
+
+  /* Neutral ramp — hierarchy via steps, not hairlines everywhere */
+  --color-steel-100: #f4f4f5;
+  --color-steel-300: #d4d4d8;
+  --color-steel-500: #71717a;
+  --color-steel-700: #3f3f46;
+
+  /* Dashboard/overhaul surfaces + accent ramp (light values) */
+  --color-bg-sidebar: #ffffff;
+  --color-surface-2: #eeeeec;
+
+  --color-indigo: #4f46e5;
+  --color-indigo-soft: #e8e7fc;
+  --color-blue: #2563eb;
+  --color-blue-soft: #dbe7fd;
+  --color-amber: #b45309;
+  --color-amber-soft: #faf1de;
+  --color-magenta: #be185d;
+  --color-magenta-soft: #fbe4ef;
+
+  /* success/warning alias the existing match/caution concepts exactly */
+  --color-success: #227a55;
+  --color-success-soft: #e5f3ec;
+  --color-warning: #9a6300;
+  --color-warning-soft: #faf1de;
+  --color-danger: #b91c1c;
+  --color-danger-soft: #fbe2e2;
+
+  /* Type */
+  --font-ui: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", monospace;
+
+  /* Radius */
+  --radius-card: 0.75rem;
+  --radius-control: 0.5rem;
+  --radius-pill: 999px;
+}
+
+/* Dark overrides — same variable names, redefined. Brighter accent values
+   for contrast against a near-black surface (plain WCAG-checked, not just
+   the light value dropped onto a dark background). */
+[data-theme="dark"] {
+  --color-ink: #f4f4f5;
+  --color-ink-secondary: #a1a1aa;
+  --color-teal: #2dd4bf;
+  --color-teal-soft: #113a3a;
+  --color-match: #34d399;
+  --color-match-soft: #103b28;
+  --color-caution: #fbbf24;
+  --color-caution-soft: #3a2a08;
+  --color-paper: #0a0b1a;
+  --color-surface: #12132a;
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border-strong: rgba(255, 255, 255, 0.12);
+
+  --color-steel-100: #1f2025;
+  --color-steel-300: #2c2d33;
+  --color-steel-500: #8b8b93;
+  --color-steel-700: #d4d4d8;
+
+  /* Dashboard/overhaul surfaces + accent ramp (dark values, from the
+     reference mockups). --color-paper above IS the mockup's "bg-base" —
+     no separate token, it's already the page-background var everywhere. */
+  --color-bg-sidebar: #0d0e1f;
+  --color-surface-2: #191a33;
+
+  --color-indigo: #6d5dfb;
+  --color-indigo-soft: rgba(109, 93, 251, 0.12);
+  --color-blue: #3b82f6;
+  --color-blue-soft: rgba(59, 130, 246, 0.12);
+  --color-amber: #f59e0b;
+  --color-amber-soft: rgba(245, 158, 11, 0.12);
+  --color-magenta: #ec4899;
+  --color-magenta-soft: rgba(236, 72, 153, 0.12);
+
+  --color-success: #22c55e;
+  --color-success-soft: rgba(34, 197, 94, 0.15);
+  --color-warning: #f59e0b;
+  --color-warning-soft: rgba(245, 158, 11, 0.15);
+  --color-danger: #ef4444;
+  --color-danger-soft: rgba(239, 68, 68, 0.15);
+}

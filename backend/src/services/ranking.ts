@@ -17,6 +17,16 @@ export interface CreatorLike {
   age25_34?: number;
   age35_44?: number;
   age45Plus?: number;
+  authenticityScore?: number;
+  audienceQualityScore?: number;
+  growthRate?: number;
+}
+
+export interface CreatorScoreBreakdown {
+  engagement: number;
+  authenticity: number;
+  audienceQuality: number;
+  growth: number;
 }
 
 export interface CampaignLike {
@@ -186,6 +196,47 @@ export function calculateMatchScore(creator: CreatorLike, campaign?: CampaignLik
 
   return {
     matchScore: Math.round(matchScore * 10) / 10,
+    breakdown,
+  };
+}
+
+export interface CreatorScoreResult {
+  creatorScore: number;
+  breakdown: CreatorScoreBreakdown;
+}
+
+const CREATOR_SCORE_WEIGHTS = {
+  engagement: 0.3,
+  authenticity: 0.3,
+  audienceQuality: 0.25,
+  growth: 0.15,
+};
+
+// Campaign-independent — how good is this creator on their own merits,
+// with no brief to score against. Always available (no campaign needed),
+// unlike calculateMatchScore. Reuses engagementScore(creator) with no
+// campaign arg, which already degrades gracefully to a reach-independent
+// curve (clamp(rate * 15)) when there's no minEngagement to compare to.
+export function calculateCreatorScore(creator: CreatorLike): CreatorScoreResult {
+  // Seed data's growthRate lands roughly in [-2, 15]; map that onto 0-100
+  // rather than assuming growth is always positive.
+  const growth = clamp(((creator.growthRate ?? 0) + 2) * (100 / 17));
+
+  const breakdown: CreatorScoreBreakdown = {
+    engagement: engagementScore(creator),
+    authenticity: clamp(creator.authenticityScore ?? 50),
+    audienceQuality: clamp(creator.audienceQualityScore ?? 50),
+    growth,
+  };
+
+  const creatorScore =
+    breakdown.engagement * CREATOR_SCORE_WEIGHTS.engagement +
+    breakdown.authenticity * CREATOR_SCORE_WEIGHTS.authenticity +
+    breakdown.audienceQuality * CREATOR_SCORE_WEIGHTS.audienceQuality +
+    breakdown.growth * CREATOR_SCORE_WEIGHTS.growth;
+
+  return {
+    creatorScore: Math.round(creatorScore * 10) / 10,
     breakdown,
   };
 }

@@ -9,4 +9,5 @@ export interface Shortlist {
   userId: string;
   creators: ShortlistCreator[];
   createdAt?: string;
+  updatedAt?: string;
 }

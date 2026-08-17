@@ -1,6 +1,9 @@
 import { Router, type Request, type Response } from "express";
 import Creator from "../models/Creator.js";
+import Campaign from "../models/Campaign.js";
 import { validateBody, creatorCreateSchema } from "../middleware/validation.js";
+import { calculateCreatorScore, calculateMatchScore } from "../services/ranking.js";
+import { getFilteredCreatorStats } from "../services/stats.js";
 
 const router = Router();
 
@@ -43,15 +46,23 @@ router.get("/", async (req: Request, res: Response) => {
     const minEngagement = parseNumberParam(req.query.minEngagement);
     if (minEngagement != null) filter.engagementRate = { $gte: minEngagement };
 
-    const [creators, total] = await Promise.all([
+    const [creators, total, stats] = await Promise.all([
       Creator.find(filter)
         .skip((page - 1) * limit)
         .limit(limit)
         .lean(),
       Creator.countDocuments(filter),
+      getFilteredCreatorStats(filter as Record<string, unknown>),
     ]);
 
-    res.json({ creators, total });
+    // Campaign-independent, synchronous, no AI — cheap enough to attach to
+    // every row so cards can show a real score with no search context.
+    const withScore = creators.map((creator) => ({
+      ...creator,
+      creatorScore: calculateCreatorScore(creator).creatorScore,
+    }));
+
+    res.json({ creators: withScore, total, stats });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to fetch creators" });
@@ -59,11 +70,27 @@ router.get("/", async (req: Request, res: Response) => {
 });
 
 // GET /api/creators/:id
+// ?campaignId= additionally computes matchScore/matchBreakdown against that
+// campaign — this is the "Score against" selector on the profile page.
 router.get("/:id", async (req: Request, res: Response) => {
   try {
     const creator = await Creator.findById(req.params.id).lean();
     if (!creator) return res.status(404).json({ error: "Creator not found" });
-    res.json(creator);
+
+    const { creatorScore, breakdown: creatorScoreBreakdown } = calculateCreatorScore(creator);
+    const response: Record<string, unknown> = { ...creator, creatorScore, creatorScoreBreakdown };
+
+    const campaignId = req.query.campaignId;
+    if (typeof campaignId === "string" && campaignId) {
+      const campaign = await Campaign.findById(campaignId).lean();
+      if (campaign) {
+        const { matchScore, breakdown } = calculateMatchScore(creator, campaign);
+        response.matchScore = matchScore;
+        response.matchBreakdown = breakdown;
+      }
+    }
+
+    res.json(response);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to fetch creator" });

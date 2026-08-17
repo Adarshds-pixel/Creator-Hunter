@@ -21,4 +21,7 @@ export interface Campaign {
   createdById?: string;
   createdAt?: string;
   updatedAt?: string;
+  creatorsCount?: number;
+  reach?: number;
+  progress?: number;
 }

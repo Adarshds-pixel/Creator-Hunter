@@ -55,9 +55,19 @@ export interface CreatorListFilters {
   minEngagement?: number;
 }
 
+export interface CreatorSetStats {
+  count: number;
+  avgEngagementRate: number;
+  categories: number;
+  cities: number;
+  thisWeekCount: number;
+  verifiedPercent: number;
+}
+
 export interface CreatorListResponse {
   creators: Creator[];
   total: number;
+  stats: CreatorSetStats;
 }
 
 export function fetchCreators(
@@ -69,8 +79,40 @@ export function fetchCreators(
   return apiClient.get<CreatorListResponse>("/creators", { params }).then((res) => res.data);
 }
 
-export function fetchCreator(id: string): Promise<Creator> {
-  return apiClient.get<Creator>(`/creators/${id}`).then((res) => res.data);
+// --- Dashboard stats ---
+
+export interface DashboardStats {
+  kpis: {
+    creatorsTotal: number;
+    avgEngagementRate: number;
+    shortlistedCount: number;
+    outreachSentCount: number;
+    repliesCount: number;
+    creatorsThisWeek: number;
+  };
+  recentCampaigns: Campaign[];
+  outreachFunnel: { discovered: number; shortlisted: number; contacted: number; replied: number };
+  discoveryInsights: { date: string; count: number }[];
+  recentActivity: {
+    type: "campaign" | "shortlist" | "outreach";
+    label: string;
+    entityName: string;
+    createdAt: string;
+  }[];
+  categoryMix: { category: string; count: number }[];
+  platformMix: { platform: string; count: number }[];
+  followerTierMix: { tier: string; count: number }[];
+  coverage: { creators: number; cities: number; categories: number };
+}
+
+export function fetchDashboardStats(): Promise<DashboardStats> {
+  return apiClient.get<DashboardStats>("/stats/dashboard").then((res) => res.data);
+}
+
+export function fetchCreator(id: string, campaignId?: string): Promise<Creator> {
+  return apiClient
+    .get<Creator>(`/creators/${id}`, { params: campaignId ? { campaignId } : undefined })
+    .then((res) => res.data);
 }
 
 export function createCreator(payload: Partial<Creator>): Promise<Creator> {
@@ -148,6 +190,10 @@ export function removeCreatorFromShortlist(shortlistId: string, creatorId: strin
   return apiClient
     .delete<Shortlist>(`/shortlists/${shortlistId}/creators/${creatorId}`)
     .then((res) => res.data);
+}
+
+export function deleteShortlist(shortlistId: string): Promise<{ success: boolean }> {
+  return apiClient.delete<{ success: boolean }>(`/shortlists/${shortlistId}`).then((res) => res.data);
 }
 
 const DEFAULT_SHORTLIST_NAME = "My Shortlist";

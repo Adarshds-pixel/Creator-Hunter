@@ -11,6 +11,9 @@ export interface ICreatorAttrs {
   bio?: string;
 
   category: string;
+  title?: string;
+  tags: string[];
+  verified: boolean;
   location?: string;
   country?: string;
   city?: string;
@@ -63,6 +66,9 @@ const creatorSchema = new Schema<ICreator>(
     bio: { type: String },
 
     category: { type: String, required: true },
+    title: { type: String },
+    tags: { type: [String], default: [] },
+    verified: { type: Boolean, default: false },
     location: { type: String },
     country: { type: String },
     city: { type: String },
