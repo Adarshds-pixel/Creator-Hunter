@@ -4,3 +4,5 @@ dist/
 .env.local
 *.tsbuildinfo
 npm-debug.log*
+docs/pair1-48-hour-plan.md
+.gitignore

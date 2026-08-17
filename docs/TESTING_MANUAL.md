@@ -10,8 +10,8 @@ Search & Discovery / Creator Intelligence / Campaigns & Outreach UI.
 # 1. MongoDB — any local instance works. If you don't have one, Docker is easiest:
 docker run -d --name creator-hunter-mongo -p 27017:27017 mongo:7
 
-# 2. Server env
-cd server
+# 2. Backend env
+cd backend
 cp .env.example .env
 # .env needs at minimum:
 #   MONGODB_URI=mongodb://localhost:27017/creator-hunter
@@ -20,15 +20,15 @@ cp .env.example .env
 # fallback for search/analysis/outreach, or set it to use real Gemini calls.
 npm install
 
-# 3. Client env — no required vars, Vite proxies /api to localhost:5000
-cd ../client
+# 3. Frontend env — no required vars, Vite proxies /api to localhost:5000
+cd ../frontend
 npm install
 ```
 
 ## 2. Seed the database
 
 ```bash
-cd server
+cd backend
 npm run seed
 ```
 
@@ -44,10 +44,10 @@ Re-run any time you want a fresh dataset — it's idempotent (clears first).
 
 ```bash
 # terminal 1
-cd server && npm run dev      # http://localhost:5000
+cd backend && npm run dev      # http://localhost:5000
 
 # terminal 2
-cd client && npm run dev      # http://localhost:5173
+cd frontend && npm run dev     # http://localhost:5173
 ```
 
 Open `http://localhost:5173`. `GET http://localhost:5000/api/health` should
@@ -56,9 +56,9 @@ return `{"status":"ok"}`.
 ## 4. Automated checks (run these before any demo)
 
 ```bash
-cd server && npm run typecheck   # tsc --noEmit, must be clean
-cd client && npm run build       # tsc -b && vite build, must be clean
-cd client && npm run lint        # oxlint — 3 known exhaustive-deps warnings, no errors (see §7)
+cd backend && npm run typecheck   # tsc --noEmit, must be clean
+cd frontend && npm run build      # tsc -b && vite build, must be clean
+cd frontend && npm run lint       # oxlint — 3 known exhaustive-deps warnings, no errors (see §7)
 ```
 
 All three currently pass clean (warnings noted in §7 are expected, not bugs).
