@@ -12,14 +12,45 @@ export interface Creator {
   name: string;
   username: string;
   platform: string;
+  profileUrl?: string;
+  profileImage?: string;
+  bio?: string;
+
   category: string;
+  location?: string;
   country?: string;
   city?: string;
+  languages?: string[];
+
   followers: number;
-  engagementRate: number;
+  following?: number;
+  posts?: number;
+
+  avgLikes?: number;
+  avgComments?: number;
   avgViews: number;
+  engagementRate: number;
+
+  audienceMale?: number;
+  audienceFemale?: number;
+
+  age18_24?: number;
+  age25_34?: number;
+  age35_44?: number;
+  age45Plus?: number;
+
+  audienceIndia?: number;
+  audienceUSA?: number;
+  audienceUAE?: number;
+  audienceUK?: number;
+  audienceOther?: number;
+
+  growthRate?: number;
   estimatedCost: number;
+
   authenticityScore: number;
+  audienceQualityScore?: number;
+
   matchScore?: number;
   matchBreakdown?: MatchBreakdown;
 }
