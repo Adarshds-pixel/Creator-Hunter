@@ -1198,7 +1198,8 @@ AUTH_SECRET
 Run:
 
 ```bash
-node server/src/seed.ts
+npm run build --prefix server
+node server/dist/seed.js
 ```
 
 Seed production data.
