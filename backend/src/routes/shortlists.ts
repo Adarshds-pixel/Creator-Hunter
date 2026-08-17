@@ -6,6 +6,7 @@ import {
   shortlistCreateSchema,
   shortlistAddCreatorSchema,
 } from "../middleware/validation.js";
+import { validateObjectId } from "../middleware/objectId.js";
 
 const router = Router();
 
@@ -46,6 +47,7 @@ router.post("/", validateBody(shortlistCreateSchema), async (req: Request, res: 
 // POST /api/shortlists/:id/creators
 router.post(
   "/:id/creators",
+  validateObjectId("id", "creatorId"),
   validateBody(shortlistAddCreatorSchema),
   async (req: Request, res: Response) => {
     try {
@@ -86,7 +88,10 @@ router.delete("/:id", async (req: Request, res: Response) => {
 });
 
 // DELETE /api/shortlists/:id/creators/:creatorId
-router.delete("/:id/creators/:creatorId", async (req: Request, res: Response) => {
+router.delete(
+  "/:id/creators/:creatorId",
+  validateObjectId("id", "creatorId"),
+  async (req: Request, res: Response) => {
   try {
     const shortlist = await Shortlist.findByIdAndUpdate(
       req.params.id,

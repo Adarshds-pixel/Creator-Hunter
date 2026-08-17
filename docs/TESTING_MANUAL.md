@@ -32,11 +32,13 @@ cd backend
 npm run seed
 ```
 
-This clears and repopulates the `Creator` collection with ~400 varied fake
+This clears and repopulates the `Creator` collection with ~500 varied fake
 creators (10 categories, 8 Indian cities + US/UK/UAE locations, 3 platforms,
 realistic follower/engagement/authenticity spread — not uniformly excellent),
 and upserts one demo user (`demo@creatorhunter.app`) that shortlists attach to
-since there's no login yet.
+since there's no login yet. The server also syncs its schema indexes on connect
+(`Creator`, unique `(campaignId, creatorId)` on `CampaignCreator`, `Shortlist.userId`,
+`Outreach.campaignId`).
 
 Re-run any time you want a fresh dataset — it's idempotent (clears first).
 
@@ -128,7 +130,7 @@ Base URL: `http://localhost:5000/api`
 | GET | `/campaigns/:id` | enriched: `{...campaign, creators: CampaignCreator[]}`, each with a merged `creator` object |
 | PATCH | `/campaigns/:id` | partial update |
 | DELETE | `/campaigns/:id` | cascades: also deletes its CampaignCreator rows |
-| POST | `/campaigns/:id/creators` | body: `{creatorId, matchScore?, status?}` — re-adding an existing creator updates it instead of erroring |
+| POST | `/campaigns/:id/creators` | body: `{creatorId, matchScore?, status?}` — upsert against the unique `(campaignId, creatorId)` index: re-adding an existing creator updates it instead of duplicating |
 | PATCH | `/campaigns/:id/creators/:creatorId` | body: `{status?, notes?}` |
 | GET | `/shortlists` | list (no auth, so this is everyone's) |
 | POST | `/shortlists` | body: `{name, userId?}` — falls back to the seeded demo user if `userId` omitted |
@@ -162,8 +164,13 @@ curl -X POST http://localhost:5000/api/search/creators \
   ("Beauty influencers in Mumbai on Instagram under 50k followers"),
   "between X and Y", "above N%", platform-only queries — all correctly
   extracted.
-- **Database state** confirmed clean after testing: 400 seeded creators, 1
+- **Database state** confirmed clean after testing: 500 seeded creators, 1
   demo user, 0 leftover test campaigns/shortlists/outreach.
+- **Hardening pass** (Hours 40-44): schema indexes added + synced on startup;
+  malformed ObjectId route params now return `400` instead of `500`; invalid
+  JSON bodies return `400`; unmatched `/api/*` routes return `404`; campaign
+  creator add is now a unique-index-backed upsert (verified: re-adding the
+  same creator updates `matchScore`, count stays 1).
 - **Not tested this pass** (no browser automation available in this
   session): actual clicking-through of the React UI. Section 5 above is a
   step-by-step script for you to do that manually — everything it exercises
@@ -174,9 +181,7 @@ curl -X POST http://localhost:5000/api/search/creators \
 ## 8. Known limitations (by design, not bugs)
 
 - No authentication — every route is open, shortlists aren't scoped to a
-  real logged-in user (they all share the seeded demo user).
+  real logged-in user (they all share the seeded demo user). `AUTH_SECRET` is
+  set aside for Developer 5's auth work.
 - `GEMINI_API_KEY` is blank by default — search/analysis/outreach run on
   the keyword-fallback path, not real Gemini output, until you set it.
-- `GET /creators/:id` with a malformed (non-ObjectId) id returns `500`, not
-  `400` — matches the minimal error handling already used elsewhere in the
-  codebase (`search.ts`, `ai.ts`), not a regression.

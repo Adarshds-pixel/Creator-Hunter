@@ -4,6 +4,7 @@ import Campaign from "../models/Campaign.js";
 import { validateBody, creatorCreateSchema } from "../middleware/validation.js";
 import { calculateCreatorScore, calculateMatchScore } from "../services/ranking.js";
 import { getFilteredCreatorStats } from "../services/stats.js";
+import { validateObjectId } from "../middleware/objectId.js";
 
 const router = Router();
 
@@ -72,7 +73,7 @@ router.get("/", async (req: Request, res: Response) => {
 // GET /api/creators/:id
 // ?campaignId= additionally computes matchScore/matchBreakdown against that
 // campaign — this is the "Score against" selector on the profile page.
-router.get("/:id", async (req: Request, res: Response) => {
+router.get("/:id", validateObjectId("id"), async (req: Request, res: Response) => {
   try {
     const creator = await Creator.findById(req.params.id).lean();
     if (!creator) return res.status(404).json({ error: "Creator not found" });

@@ -110,4 +110,12 @@ const creatorSchema = new Schema<ICreator>(
   { timestamps: true }
 );
 
+creatorSchema.index({ category: 1 });
+creatorSchema.index({ country: 1 });
+creatorSchema.index({ city: 1 });
+creatorSchema.index({ platform: 1 });
+creatorSchema.index({ followers: 1 });
+creatorSchema.index({ engagementRate: 1 });
+creatorSchema.index({ category: 1, country: 1, platform: 1, followers: 1 });
+
 export default mongoose.model<ICreator>("Creator", creatorSchema);

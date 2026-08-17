@@ -38,5 +38,7 @@ const campaignCreatorSchema = new Schema<ICampaignCreator>(
   { timestamps: true }
 );
 
+campaignCreatorSchema.index({ campaignId: 1, creatorId: 1 }, { unique: true });
+
 export const CAMPAIGN_CREATOR_STATUSES = STATUSES;
 export default mongoose.model<ICampaignCreator>("CampaignCreator", campaignCreatorSchema);

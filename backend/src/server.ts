@@ -1,4 +1,4 @@
-import express, { type Request, type Response } from "express";
+import express, { type Request, type Response, type NextFunction } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { connectDB } from "./config/db.js";
@@ -28,6 +28,21 @@ app.use("/api/stats", statsRouter);
 
 app.get("/api/health", (_req: Request, res: Response) => {
   res.json({ status: "ok" });
+});
+
+// 404 for any unmatched API route.
+app.use("/api", (_req: Request, res: Response) => {
+  res.status(404).json({ error: "Not found" });
+});
+
+// Central error handler: malformed JSON bodies become 400s, anything else 500s.
+app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  const isParseError = (err as { type?: string } | null)?.type === "entity.parse.failed";
+  if (isParseError) {
+    return res.status(400).json({ error: "Invalid JSON payload" });
+  }
+  console.error("Unhandled error:", err);
+  res.status(500).json({ error: "Internal server error" });
 });
 
 const PORT = process.env.PORT || 5000;

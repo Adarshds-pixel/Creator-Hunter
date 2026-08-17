@@ -28,4 +28,6 @@ const shortlistSchema = new Schema<IShortlist>(
   { timestamps: true }
 );
 
+shortlistSchema.index({ userId: 1 });
+
 export default mongoose.model<IShortlist>("Shortlist", shortlistSchema);

@@ -5,6 +5,7 @@ import {
   outreachCreateSchema,
   outreachUpdateSchema,
 } from "../middleware/validation.js";
+import { validateObjectId } from "../middleware/objectId.js";
 
 const router = Router();
 
@@ -40,7 +41,7 @@ router.post("/", validateBody(outreachCreateSchema), async (req: Request, res: R
 });
 
 // PATCH /api/outreach/:id
-router.patch("/:id", validateBody(outreachUpdateSchema), async (req: Request, res: Response) => {
+router.patch("/:id", validateObjectId("id"), validateBody(outreachUpdateSchema), async (req: Request, res: Response) => {
   try {
     const current = await Outreach.findById(req.params.id);
     if (!current) return res.status(404).json({ error: "Outreach not found" });
