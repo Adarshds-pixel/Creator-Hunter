@@ -45,9 +45,30 @@ function AppLayout() {
                 </ProtectedRoute>
               }
             />
-            <Route path="/creators" element={<CreatorList />} />
-            <Route path="/creators/compare" element={<CreatorCompare />} />
-            <Route path="/creators/:id" element={<CreatorProfile />} />
+            <Route
+              path="/creators"
+              element={
+                <ProtectedRoute>
+                  <CreatorList />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/creators/compare"
+              element={
+                <ProtectedRoute>
+                  <CreatorCompare />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/creators/:id"
+              element={
+                <ProtectedRoute>
+                  <CreatorProfile />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/campaigns"
               element={

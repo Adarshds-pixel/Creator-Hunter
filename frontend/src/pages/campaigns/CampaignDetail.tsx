@@ -159,7 +159,13 @@ export default function CampaignDetail() {
         {PIPELINE_STAGES.map((stage) => (
           <Card key={stage} className="space-y-2">
             <div className="text-center">
-              <p className="text-xs font-medium text-ink-secondary">{stage}</p>
+              <p className="flex min-h-[2rem] flex-col items-center justify-center text-xs font-medium leading-tight text-ink-secondary">
+                {stage.split("_").map((word, i) => (
+                  <span key={i} className="block whitespace-nowrap">
+                    {word}
+                  </span>
+                ))}
+              </p>
               <p className="mt-1 text-lg font-semibold text-ink">
                 {grouped.get(stage)?.length ?? 0}
               </p>

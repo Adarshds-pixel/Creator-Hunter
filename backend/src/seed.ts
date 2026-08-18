@@ -454,8 +454,9 @@ async function seedCampaignPipelines(insertedCampaigns: InstanceType<typeof Camp
       ? await Creator.find({ category: campaign.targetCategory }).limit(profile.count).lean()
       : [];
     if (candidates.length < profile.count) {
+      const excludeIds = candidates.map((c) => c._id);
       const extra = await Creator.aggregate([
-        { $match: { _id: { $nin: candidates.map((c) => c._id) } } },
+        { $match: { _id: { $nin: excludeIds } } },
         { $sample: { size: profile.count - candidates.length } },
       ]);
       candidates = candidates.concat(extra);
