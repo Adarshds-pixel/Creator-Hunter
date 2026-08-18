@@ -454,7 +454,10 @@ async function seedCampaignPipelines(insertedCampaigns: InstanceType<typeof Camp
       ? await Creator.find({ category: campaign.targetCategory }).limit(profile.count).lean()
       : [];
     if (candidates.length < profile.count) {
-      const extra = await Creator.aggregate([{ $sample: { size: profile.count - candidates.length } }]);
+      const extra = await Creator.aggregate([
+        { $match: { _id: { $nin: candidates.map((c) => c._id) } } },
+        { $sample: { size: profile.count - candidates.length } },
+      ]);
       candidates = candidates.concat(extra);
     }
 
@@ -474,8 +477,6 @@ async function seedCampaignPipelines(insertedCampaigns: InstanceType<typeof Camp
 }
 
 async function seed(count = 2500) {
-  await connectDB();
-
   console.log("Wiping existing collections (Creator, Campaign, CampaignCreator, Shortlist, Outreach)...");
   await Promise.all([
     Creator.deleteMany({}),

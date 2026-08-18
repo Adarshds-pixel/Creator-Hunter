@@ -15,8 +15,10 @@ export async function connectDB(): Promise<void> {
     // Attempt connecting to the configured URI with a 2-second timeout
     await mongoose.connect(uri, { serverSelectionTimeoutMS: 2000 });
     console.log(`Connected to MongoDB: ${uri}`);
-  } catch {
-    console.warn("Could not connect to external MongoDB. Initializing in-memory Mongo server for seamless local development...");
+  } catch (err) {
+    console.warn(
+      `Could not connect to MongoDB at ${uri}: ${(err as Error).message}. Initializing in-memory Mongo server for seamless local development (data will NOT persist to your real database)...`
+    );
     mongod = await MongoMemoryServer.create();
     const memUri = mongod.getUri();
     await mongoose.connect(memUri);
