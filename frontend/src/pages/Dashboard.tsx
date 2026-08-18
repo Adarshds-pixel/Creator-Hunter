@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Users, TrendingUp, Star, Send, MessageCircle, Bell, Calendar } from "lucide-react";
+import { Users, TrendingUp, Star, Send, MessageCircle, Calendar } from "lucide-react";
 import { buttonClasses } from "../components/ui/Button";
 import { StatusPill } from "../components/ui/StatusPill";
 import { Skeleton } from "../components/ui/Skeleton";
 import { EmptyState } from "../components/ui/EmptyState";
 import { Card } from "../components/ui/Card";
 import { DropdownMenu } from "../components/ui/DropdownMenu";
+import { NotificationsMenu } from "../components/layout/NotificationsMenu";
 import { StatCard } from "../components/dashboard/StatCard";
 import { DataTable, type DataTableColumn } from "../components/dashboard/DataTable";
 import { DonutStat } from "../components/dashboard/DonutStat";
@@ -82,13 +83,7 @@ export default function Dashboard() {
           <p className="text-sm text-ink-secondary">Welcome back! Here's what's happening with your campaigns.</p>
         </div>
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            aria-label="Notifications"
-            className="rounded-control border border-border p-2 text-steel-500 hover:bg-steel-100 hover:text-ink"
-          >
-            <Bell size={18} />
-          </button>
+          <NotificationsMenu />
           <Link to="/campaigns/new" className={buttonClasses("primary")}>
             + New campaign
           </Link>
@@ -191,15 +186,18 @@ export default function Dashboard() {
         </div>
         <div className="xl:col-span-4">
           <Card className="h-full">
-            <p className="mb-3 text-sm font-semibold uppercase tracking-wide text-steel-500">Outreach Funnel</p>
+            <p className="text-sm font-semibold uppercase tracking-wide text-steel-500">Campaign Pipeline</p>
+            <p className="mb-3 text-xs text-ink-secondary">
+              Per-campaign pipeline stage — separate from your saved shortlists and sent outreach above.
+            </p>
             {!stats && !error && <Skeleton className="h-40 w-full" />}
             {stats && (
               <DonutStat
-                title="Funnel"
+                title="Pipeline"
                 emptyTitle="Nothing tracked yet"
-                emptyDescription="The funnel fills in as creators move from discovered to shortlisted, contacted, and replied within a campaign."
+                emptyDescription="The pipeline fills in as creators move from added to shortlisted, contacted, and replied within a campaign."
                 segments={[
-                  { label: "Discovered", value: stats.outreachFunnel.discovered, colorVar: "--color-indigo" },
+                  { label: "In Pipeline", value: stats.outreachFunnel.discovered, colorVar: "--color-indigo" },
                   { label: "Shortlisted", value: stats.outreachFunnel.shortlisted, colorVar: "--color-amber" },
                   { label: "Contacted", value: stats.outreachFunnel.contacted, colorVar: "--color-blue" },
                   { label: "Replied", value: stats.outreachFunnel.replied, colorVar: "--color-magenta" },

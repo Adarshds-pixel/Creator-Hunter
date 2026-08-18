@@ -6,7 +6,7 @@ import { Button } from "../ui/Button";
 import { Avatar } from "../ui/Avatar";
 import { ScoreStrip } from "../scoring/ScoreStrip";
 import { PLATFORM_ICON } from "./platformIcons";
-import { addCreatorToDefaultShortlist } from "../../lib/apiClient";
+import { ShortlistPickerModal } from "../shortlists/ShortlistPickerModal";
 import { formatFollowers, formatINR, formatPercent } from "../../lib/format";
 import type { Creator } from "../../types/creator";
 
@@ -36,17 +36,7 @@ function engagementTone(rate: number): "success" | "ink" | "warning" {
 // add-to-shortlist (Member C) actions layered on top of the same card.
 export function CreatorCard({ creator, selected, onToggleSelect }: CreatorCardProps) {
   const [added, setAdded] = useState(false);
-  const [shortlistError, setShortlistError] = useState<string | null>(null);
-
-  async function handleAddToShortlist() {
-    setShortlistError(null);
-    try {
-      await addCreatorToDefaultShortlist(creator._id);
-      setAdded(true);
-    } catch {
-      setShortlistError("Could not add to shortlist.");
-    }
-  }
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const PlatformIcon = PLATFORM_ICON[creator.platform];
   const visibleTags = creator.tags?.slice(0, 3) ?? [];
@@ -123,7 +113,7 @@ export function CreatorCard({ creator, selected, onToggleSelect }: CreatorCardPr
 
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={handleAddToShortlist} disabled={added} className="text-xs">
+          <Button variant="outline" onClick={() => setPickerOpen(true)} disabled={added} className="text-xs">
             {added ? "Added" : "Shortlist"}
           </Button>
           {onToggleSelect && (
@@ -136,7 +126,17 @@ export function CreatorCard({ creator, selected, onToggleSelect }: CreatorCardPr
           View profile →
         </Link>
       </div>
-      {shortlistError && <p className="text-xs text-caution">{shortlistError}</p>}
+
+      <ShortlistPickerModal
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        creatorId={creator._id}
+        creatorName={creator.name}
+        onAdded={() => {
+          setAdded(true);
+          setPickerOpen(false);
+        }}
+      />
     </Card>
   );
 }

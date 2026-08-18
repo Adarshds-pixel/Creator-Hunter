@@ -49,62 +49,132 @@ function getClient(): GoogleGenAI | null {
 
 const MODEL = "gemini-3.6-flash";
 
+const ATTEMPT_TIMEOUT_MS = 8000;
+
+function withTimeout<T>(fn: () => Promise<T>, timeoutMs: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`Gemini call exceeded ${timeoutMs}ms`)), timeoutMs);
+    fn().then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      }
+    );
+  });
+}
+
 // Gemini's free tier returns transient 503 "high demand" errors fairly
-// often. Retry a couple of times with backoff before giving up — this
-// alone resolves most of them silently. Callers still need a fallback for
-// when the outage outlasts the retries.
-async function withRetry<T>(fn: () => Promise<T>, retries = 2, delayMs = 800): Promise<T> {
+// often. Retry with backoff before giving up — this alone resolves most of
+// them silently. Each attempt is time-boxed (timeoutMs) so a hung call
+// fails fast into the retry/fallback path instead of blocking the request
+// indefinitely. Callers still need a fallback for when retries are
+// exhausted (or, for the interactive search path, disabled entirely).
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  retries = 1,
+  delayMs = 800,
+  timeoutMs = ATTEMPT_TIMEOUT_MS
+): Promise<T> {
   try {
-    return await fn();
+    return await withTimeout(fn, timeoutMs);
   } catch (err) {
     if (retries <= 0) throw err;
     await new Promise((resolve) => setTimeout(resolve, delayMs));
-    return withRetry(fn, retries - 1, delayMs * 2);
+    return withRetry(fn, retries - 1, delayMs * 2, timeoutMs);
   }
+}
+
+// Search is typed into an interactive box and needs to feel instant — no
+// retry, and a tighter timeout than the analysis/outreach calls (which are
+// deliberate, less-frequent "Generate" actions already documented in the UI
+// as taking up to ~20 seconds). A slow/unavailable Gemini call here should
+// degrade to the keyword fallback quickly rather than making the search box
+// sit on a multi-attempt backoff cycle.
+const SEARCH_TIMEOUT_MS = 5000;
+
+interface SearchCacheEntry {
+  filters: SearchFilters;
+  expires: number;
+}
+
+const SEARCH_CACHE_TTL_MS = 10 * 60 * 1000;
+const SEARCH_CACHE_MAX_SIZE = 200;
+const searchCache = new Map<string, SearchCacheEntry>();
+
+function getCachedSearch(key: string): SearchFilters | undefined {
+  const entry = searchCache.get(key);
+  if (!entry) return undefined;
+  if (entry.expires < Date.now()) {
+    searchCache.delete(key);
+    return undefined;
+  }
+  return entry.filters;
+}
+
+function setCachedSearch(key: string, filters: SearchFilters): void {
+  if (searchCache.size >= SEARCH_CACHE_MAX_SIZE) {
+    const oldestKey = searchCache.keys().next().value;
+    if (oldestKey !== undefined) searchCache.delete(oldestKey);
+  }
+  searchCache.set(key, { filters, expires: Date.now() + SEARCH_CACHE_TTL_MS });
 }
 
 // Member A — Search & Discovery
 // Natural language query -> structured creator search filters.
 export async function parseCreatorSearch(query: string): Promise<SearchFilters> {
+  const cacheKey = query.trim().toLowerCase();
+  const cached = getCachedSearch(cacheKey);
+  if (cached) return cached;
+
   const ai = getClient();
   if (!ai) return fallbackParseSearch(query);
 
   try {
-    const response = await withRetry(() =>
-      ai.models.generateContent({
-        model: MODEL,
-        contents: `Extract creator search filters from this campaign brief: "${query}"
+    const response = await withRetry(
+      () =>
+        ai.models.generateContent({
+          model: MODEL,
+          contents: `Extract creator search filters from this campaign brief: "${query}"
 
 Only include a field if the brief actually specifies it — omit fields you're not confident about rather than guessing.`,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              // enum constrains the model to the exact casing the database uses —
-              // without it the model returns lowercase/paraphrased values
-              // ("fitness" instead of "Fitness") that never match a Mongo query.
-              category: { type: Type.STRING, enum: Object.keys(CATEGORY_KEYWORDS) },
-              country: { type: Type.STRING, enum: Object.keys(COUNTRY_KEYWORDS) },
-              city: { type: Type.STRING },
-              platform: { type: Type.STRING, enum: Object.keys(PLATFORM_KEYWORDS) },
-              minFollowers: { type: Type.NUMBER },
-              maxFollowers: { type: Type.NUMBER },
-              minEngagement: {
-                type: Type.NUMBER,
-                description:
-                  'Engagement rate as a plain percentage number, matching how the brief states it — "above 4%" means 4, not 0.04.',
+          config: {
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                // enum constrains the model to the exact casing the database uses —
+                // without it the model returns lowercase/paraphrased values
+                // ("fitness" instead of "Fitness") that never match a Mongo query.
+                category: { type: Type.STRING, enum: Object.keys(CATEGORY_KEYWORDS) },
+                country: { type: Type.STRING, enum: Object.keys(COUNTRY_KEYWORDS) },
+                city: { type: Type.STRING },
+                platform: { type: Type.STRING, enum: Object.keys(PLATFORM_KEYWORDS) },
+                minFollowers: { type: Type.NUMBER },
+                maxFollowers: { type: Type.NUMBER },
+                minEngagement: {
+                  type: Type.NUMBER,
+                  description:
+                    'Engagement rate as a plain percentage number, matching how the brief states it — "above 4%" means 4, not 0.04.',
+                },
               },
             },
           },
-        },
-      })
+        }),
+      0,
+      800,
+      SEARCH_TIMEOUT_MS
     );
 
-    return JSON.parse(response.text ?? "{}") as SearchFilters;
+    const filters = JSON.parse(response.text ?? "{}") as SearchFilters;
+    setCachedSearch(cacheKey, filters);
+    return filters;
   } catch (err) {
-    // Retries exhausted (e.g. sustained 503 from Gemini) — degrade to the
-    // keyword parser instead of failing the search outright.
+    // Timed out / Gemini unavailable — degrade to the keyword parser
+    // instead of failing the search outright.
     console.error("parseCreatorSearch: Gemini unavailable, using fallback parser", err);
     return fallbackParseSearch(query);
   }

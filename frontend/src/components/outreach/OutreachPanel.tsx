@@ -49,6 +49,13 @@ export function OutreachPanel({
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  async function handleCopy() {
+    await navigator.clipboard.writeText(message);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
 
   async function handleGenerate() {
     setLoading(true);
@@ -117,9 +124,14 @@ export function OutreachPanel({
       )}
 
       {message && !outreachId && (
-        <Button onClick={handleSend} disabled={sending} variant="secondary">
-          {sending ? "Sending..." : "Send & Mark Contacted"}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button onClick={handleSend} disabled={sending} variant="secondary">
+            {sending ? "Sending..." : "Send & Mark Contacted"}
+          </Button>
+          <Button onClick={handleCopy} variant="outline">
+            {copied ? "Copied!" : "Copy"}
+          </Button>
+        </div>
       )}
 
       {outreachId && (

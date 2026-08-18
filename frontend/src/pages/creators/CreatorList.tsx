@@ -1,20 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { AnimatePresence } from "framer-motion";
-import { Users, TrendingUp, UserPlus, ShieldCheck, Bell, Filter as FilterIcon, LayoutGrid, List, ChevronDown } from "lucide-react";
+import { Users, TrendingUp, UserPlus, ShieldCheck, Filter as FilterIcon, LayoutGrid, List, ChevronDown } from "lucide-react";
 import { SearchBar } from "../../components/search/SearchBar";
 import { Filters, INITIAL_FILTERS, type FilterState } from "../../components/search/Filters";
 import { CreatorCard } from "../../components/creators/CreatorCard";
 import { AvatarStack } from "../../components/creators/AvatarStack";
-import { FilterChip } from "../../components/creators/FilterChip";
 import { Button, buttonClasses } from "../../components/ui/Button";
 import { StatCard } from "../../components/dashboard/StatCard";
 import { DropdownMenu } from "../../components/ui/DropdownMenu";
+import { NotificationsMenu } from "../../components/layout/NotificationsMenu";
 import { Sheet } from "../../components/ui/Sheet";
 import { Skeleton } from "../../components/ui/Skeleton";
-import { searchCreators, fetchCreators, type CreatorSetStats } from "../../lib/apiClient";
+import { fetchCreators, type CreatorSetStats } from "../../lib/apiClient";
 import type { Creator } from "../../types/creator";
-import type { SearchFilters } from "../../types/search";
 
 const STORAGE_KEY = "discover-state";
 
@@ -23,7 +21,6 @@ interface PersistedState {
   filterValues: FilterState;
   results: Creator[];
   stats: CreatorSetStats | null;
-  aiFilters: SearchFilters | null;
   searched: boolean;
   selectedIds: string[];
 }
@@ -36,34 +33,6 @@ function loadPersisted(): PersistedState | null {
     return null;
   }
 }
-
-function computeLocalStats(creators: Creator[]): CreatorSetStats {
-  const count = creators.length;
-  const avg = count === 0 ? 0 : creators.reduce((sum, c) => sum + c.engagementRate, 0) / count;
-  const categories = new Set(creators.map((c) => c.category)).size;
-  const cities = new Set(creators.map((c) => c.city).filter(Boolean)).size;
-  const verified = creators.filter((c) => c.verified).length;
-  return {
-    count,
-    avgEngagementRate: Math.round(avg * 10) / 10,
-    categories,
-    cities,
-    thisWeekCount: 0, // not derivable client-side from a ranked result page — omitted, not faked
-    verifiedPercent: count > 0 ? Math.round((verified / count) * 100) : 0,
-  };
-}
-
-const AI_FILTER_LABELS: { key: keyof SearchFilters; format: (v: NonNullable<SearchFilters[keyof SearchFilters]>) => string }[] = [
-  { key: "category", format: (v) => String(v) },
-  { key: "country", format: (v) => String(v) },
-  { key: "city", format: (v) => String(v) },
-  { key: "platform", format: (v) => String(v) },
-  { key: "minFollowers", format: (v) => `≥${Number(v).toLocaleString()} followers` },
-  { key: "maxFollowers", format: (v) => `≤${Number(v).toLocaleString()} followers` },
-  { key: "minEngagement", format: (v) => `≥${v}% engagement` },
-];
-
-const POPULAR_SEARCHES = ["Yoga creators", "Home workout", "Weight loss", "Nutrition experts", "Gym trainers"];
 
 const SORT_OPTIONS: { key: string; label: string }[] = [
   { key: "relevance", label: "Relevance" },
@@ -91,7 +60,6 @@ export default function CreatorList() {
   const [filterValues, setFilterValues] = useState<FilterState>(initial?.filterValues ?? INITIAL_FILTERS);
   const [results, setResults] = useState<Creator[]>(initial?.results ?? []);
   const [stats, setStats] = useState<CreatorSetStats | null>(initial?.stats ?? null);
-  const [aiFilters, setAiFilters] = useState<SearchFilters | null>(initial?.aiFilters ?? null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searched, setSearched] = useState(initial?.searched ?? false);
@@ -101,13 +69,14 @@ export default function CreatorList() {
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const isMobile = useIsMobile();
   const didInitialLoad = useRef(!!initial);
+  const searchRequestId = useRef(0);
 
   // Persist on every relevant change — not just on unmount — so switching
   // tabs or a hard navigation doesn't lose the last search either.
   useEffect(() => {
-    const state: PersistedState = { query, filterValues, results, stats, aiFilters, searched, selectedIds };
+    const state: PersistedState = { query, filterValues, results, stats, searched, selectedIds };
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }, [query, filterValues, results, stats, aiFilters, searched, selectedIds]);
+  }, [query, filterValues, results, stats, searched, selectedIds]);
 
   // Populate the grid immediately on a fresh visit, not just after a search —
   // "N creators found" should already be true the moment the page loads.
@@ -126,19 +95,23 @@ export default function CreatorList() {
   }, []);
 
   async function handleSearch(submittedQuery: string) {
+    const requestId = ++searchRequestId.current;
     setQuery(submittedQuery);
     setLoading(true);
     setError(null);
     try {
-      const { results: ranked, filters } = await searchCreators(submittedQuery);
-      setResults(ranked);
-      setStats(computeLocalStats(ranked));
-      setAiFilters(filters);
+      const { creators, stats: s } = await fetchCreators({ name: submittedQuery || undefined }, 1, 60);
+      // A newer search may have started (and possibly already resolved)
+      // while this one was in flight — don't let a slower, stale response
+      // clobber it.
+      if (requestId !== searchRequestId.current) return;
+      setResults(creators);
+      setStats(s);
       setSearched(true);
     } catch {
-      setError("Search failed. Try again.");
+      if (requestId === searchRequestId.current) setError("Search failed. Try again.");
     } finally {
-      setLoading(false);
+      if (requestId === searchRequestId.current) setLoading(false);
     }
   }
 
@@ -147,34 +120,6 @@ export default function CreatorList() {
     setStats(filteredStats);
     setSearched(true);
     setError(null);
-  }
-
-  async function removeAiFilter(key: keyof SearchFilters) {
-    if (!aiFilters) return;
-    const next = { ...aiFilters, [key]: undefined };
-    setAiFilters(next);
-    setLoading(true);
-    try {
-      const { creators, stats: s } = await fetchCreators(
-        {
-          category: next.category,
-          country: next.country,
-          city: next.city,
-          platform: next.platform,
-          minFollowers: next.minFollowers,
-          maxFollowers: next.maxFollowers,
-          minEngagement: next.minEngagement,
-        },
-        1,
-        60
-      );
-      setResults(creators);
-      setStats(s);
-    } catch {
-      setError("Could not update results.");
-    } finally {
-      setLoading(false);
-    }
   }
 
   function toggleSelected(id: string) {
@@ -192,10 +137,6 @@ export default function CreatorList() {
     return copy;
   }, [results, sortKey]);
 
-  const activeAiChips = aiFilters
-    ? AI_FILTER_LABELS.filter(({ key }) => aiFilters[key] != null && aiFilters[key] !== "")
-    : [];
-
   const photoPool = results.map((c) => c.profileImage).filter((p): p is string => !!p);
 
   return (
@@ -207,13 +148,7 @@ export default function CreatorList() {
         </div>
         <div className="flex items-center gap-3">
           {photoPool.length > 0 && <AvatarStack photos={photoPool} count={stats?.count ?? 0} />}
-          <button
-            type="button"
-            aria-label="Notifications"
-            className="rounded-control border border-border p-2 text-steel-500 hover:bg-steel-100 hover:text-ink"
-          >
-            <Bell size={18} />
-          </button>
+          <NotificationsMenu />
           <Link to="/campaigns/new" className={buttonClasses("primary")}>
             + New campaign
           </Link>
@@ -221,30 +156,6 @@ export default function CreatorList() {
       </div>
 
       <SearchBar onSearch={handleSearch} loading={loading} initialQuery={query} />
-
-      {activeAiChips.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2">
-          <AnimatePresence>
-            {activeAiChips.map(({ key, format }) => (
-              <FilterChip key={key} label={format(aiFilters![key]!)} onRemove={() => removeAiFilter(key)} />
-            ))}
-          </AnimatePresence>
-        </div>
-      )}
-
-      <div className="flex flex-wrap items-center gap-2 text-sm">
-        <span className="text-ink-secondary">Popular searches:</span>
-        {POPULAR_SEARCHES.map((s) => (
-          <button
-            key={s}
-            type="button"
-            onClick={() => handleSearch(s)}
-            className="rounded-pill border border-border px-3 py-1 text-xs text-ink-secondary hover:border-teal hover:text-teal"
-          >
-            {s}
-          </button>
-        ))}
-      </div>
 
       {isMobile ? (
         <>

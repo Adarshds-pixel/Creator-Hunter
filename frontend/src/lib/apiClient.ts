@@ -82,6 +82,7 @@ export interface CreatorListFilters {
   minFollowers?: number;
   maxFollowers?: number;
   minEngagement?: number;
+  name?: string;
 }
 
 export interface CreatorSetStats {
@@ -223,16 +224,6 @@ export function removeCreatorFromShortlist(shortlistId: string, creatorId: strin
 
 export function deleteShortlist(shortlistId: string): Promise<{ success: boolean }> {
   return apiClient.delete<{ success: boolean }>(`/shortlists/${shortlistId}`).then((res) => res.data);
-}
-
-const DEFAULT_SHORTLIST_NAME = "My Shortlist";
-
-// Convenience used by CreatorCard/CreatorProfile's one-click "Add to shortlist" —
-// there's no shortlist-picker UI yet, so this reuses (or creates) a single default list.
-export async function addCreatorToDefaultShortlist(creatorId: string, notes?: string): Promise<Shortlist> {
-  const shortlists = await fetchShortlists();
-  const target = shortlists[0] ?? (await createShortlist(DEFAULT_SHORTLIST_NAME));
-  return addCreatorToShortlist(target._id, creatorId, notes);
 }
 
 // --- Outreach ---

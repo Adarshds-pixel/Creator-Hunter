@@ -8,10 +8,10 @@ import { Modal } from "../../components/ui/Modal";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { ScoreBreakdown } from "../../components/scoring/ScoreBreakdown";
 import { CreatorScoreCard } from "../../components/scoring/CreatorScoreCard";
+import { ShortlistPickerModal } from "../../components/shortlists/ShortlistPickerModal";
 import {
   fetchCreator,
   fetchCreatorAnalysis,
-  addCreatorToDefaultShortlist,
   fetchCampaigns,
   addCreatorToCampaign,
 } from "../../lib/apiClient";
@@ -61,7 +61,7 @@ export default function CreatorProfile() {
   const [analysisError, setAnalysisError] = useState<string | null>(null);
 
   const [shortlisted, setShortlisted] = useState(false);
-  const [shortlistError, setShortlistError] = useState<string | null>(null);
+  const [shortlistPickerOpen, setShortlistPickerOpen] = useState(false);
 
   const [campaignModalOpen, setCampaignModalOpen] = useState(false);
   const [campaigns, setCampaigns] = useState<Campaign[] | null>(null);
@@ -123,15 +123,9 @@ export default function CreatorProfile() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  async function handleShortlist() {
-    setShortlistError(null);
+  function handleShortlist() {
     if (!id) return;
-    try {
-      await addCreatorToDefaultShortlist(id);
-      setShortlisted(true);
-    } catch {
-      setShortlistError("Could not add to shortlist. Try again.");
-    }
+    setShortlistPickerOpen(true);
   }
 
   function openCampaignModal() {
@@ -224,7 +218,6 @@ export default function CreatorProfile() {
           <Button variant="outline" onClick={openCampaignModal}>
             Add to campaign
           </Button>
-          {shortlistError && <p className="text-xs text-caution">{shortlistError}</p>}
         </div>
       </aside>
 
@@ -401,6 +394,17 @@ export default function CreatorProfile() {
           </ul>
         )}
       </Modal>
+
+      <ShortlistPickerModal
+        open={shortlistPickerOpen}
+        onOpenChange={setShortlistPickerOpen}
+        creatorId={id ?? ""}
+        creatorName={creator.name}
+        onAdded={() => {
+          setShortlisted(true);
+          setShortlistPickerOpen(false);
+        }}
+      />
     </div>
   );
 }

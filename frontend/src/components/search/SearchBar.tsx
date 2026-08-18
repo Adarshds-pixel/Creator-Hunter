@@ -1,5 +1,5 @@
-import { useState, type FormEvent } from "react";
-import { Search, Sparkles } from "lucide-react";
+import { useEffect, useState, type FormEvent } from "react";
+import { Search } from "lucide-react";
 
 interface SearchBarProps {
   onSearch: (query: string) => void;
@@ -9,16 +9,19 @@ interface SearchBarProps {
   initialQuery?: string;
 }
 
-// Member A — Search & Discovery
-// The gradient button is the one gradient element on this screen — the
-// primary action (an AI-parsed natural-language search) earns it; nothing
-// else on Discover gets the loud treatment.
+// Plain name search — category/followers/platform/etc. all live in
+// Advanced Filters, so this box has exactly one job: match creators by name.
 export function SearchBar({ onSearch, loading, initialQuery }: SearchBarProps) {
   const [query, setQuery] = useState(initialQuery ?? "");
 
+  // useState's initializer only runs on first mount — resync when the
+  // parent's submitted query changes after that (e.g. cleared elsewhere).
+  useEffect(() => {
+    setQuery(initialQuery ?? "");
+  }, [initialQuery]);
+
   function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (query.trim().length < 3) return;
     onSearch(query.trim());
   }
 
@@ -30,16 +33,15 @@ export function SearchBar({ onSearch, loading, initialQuery }: SearchBarProps) {
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Find Indian fitness creators with 50K-500K followers and engagement above 4%"
+          placeholder="Search creators by name"
           className="w-full rounded-control border border-border bg-surface py-3 pl-10 pr-3 text-sm text-ink placeholder:text-ink-secondary focus:border-teal focus:outline-none"
         />
       </div>
       <button
         type="submit"
         disabled={loading}
-        className="inline-flex items-center gap-1.5 rounded-control bg-gradient-to-r from-teal to-blue px-5 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:opacity-50"
+        className="rounded-control bg-teal px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-teal/90 disabled:pointer-events-none disabled:opacity-50"
       >
-        <Sparkles size={16} />
         {loading ? "Searching…" : "Search"}
       </button>
     </form>

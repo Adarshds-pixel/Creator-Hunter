@@ -15,6 +15,7 @@ interface CreatorListFilter {
   platform?: string;
   followers?: { $gte?: number; $lte?: number };
   engagementRate?: { $gte: number };
+  name?: { $regex: string; $options: string };
 }
 
 function parseNumberParam(value: unknown): number | undefined {
@@ -23,10 +24,16 @@ function parseNumberParam(value: unknown): number | undefined {
   return Number.isFinite(num) ? num : undefined;
 }
 
+// Escapes regex metacharacters so a name search treats the query as a
+// literal substring, not a user-controlled regex pattern.
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 // GET /api/creators
 router.get("/", async (req: Request, res: Response) => {
   try {
-    const { category, country, city, platform } = req.query;
+    const { category, country, city, platform, name } = req.query;
     const page = Math.max(1, Number(req.query.page) || 1);
     const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 24));
 
@@ -35,6 +42,9 @@ router.get("/", async (req: Request, res: Response) => {
     if (typeof country === "string" && country) filter.country = country;
     if (typeof city === "string" && city) filter.city = city;
     if (typeof platform === "string" && platform) filter.platform = platform;
+    if (typeof name === "string" && name.trim()) {
+      filter.name = { $regex: escapeRegex(name.trim()), $options: "i" };
+    }
 
     const minFollowers = parseNumberParam(req.query.minFollowers);
     const maxFollowers = parseNumberParam(req.query.maxFollowers);
