@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { Star, Search, Clock, Calendar, LayoutGrid, List, ChevronDown, MoreVertical } from "lucide-react";
+import { Star, Search, Clock, Calendar, LayoutGrid, List, ChevronDown, MoreVertical, Download } from "lucide-react";
 import { Card } from "../../components/ui/Card";
 import { Modal } from "../../components/ui/Modal";
 import { DropdownMenu } from "../../components/ui/DropdownMenu";
@@ -8,7 +8,7 @@ import { EmptyState } from "../../components/ui/EmptyState";
 import { Skeleton } from "../../components/ui/Skeleton";
 import { IconTile } from "../../components/dashboard/IconTile";
 import { MemberAvatars } from "../../components/shortlists/MemberAvatars";
-import { fetchShortlists, createShortlist, deleteShortlist, fetchCreator } from "../../lib/apiClient";
+import { fetchShortlists, createShortlist, deleteShortlist, fetchCreator, exportToCSV } from "../../lib/apiClient";
 import { formatShortDate, formatRelativeTime } from "../../lib/format";
 import type { Shortlist } from "../../types/shortlist";
 import type { Creator } from "../../types/creator";
@@ -19,7 +19,6 @@ const SORT_OPTIONS = [
   { key: "creators", label: "Most creators" },
 ] as const;
 
-// Member C — Campaigns & Outreach
 export default function Shortlists() {
   const [shortlists, setShortlists] = useState<Shortlist[]>([]);
   const [creatorsById, setCreatorsById] = useState<Record<string, Creator>>({});
@@ -87,6 +86,25 @@ export default function Shortlists() {
       );
     return copy;
   }, [shortlists, search, sortKey]);
+
+  function handleExport(shortlist: Shortlist) {
+    const rows = shortlist.creators.map((sc) => {
+      const creator = creatorsById[sc.creatorId];
+      return {
+        Name: creator?.name || sc.creatorId,
+        Username: creator?.username || "",
+        Platform: creator?.platform || "",
+        Category: creator?.category || "",
+        Followers: creator?.followers || 0,
+        EngagementRate: `${creator?.engagementRate || 0}%`,
+        AuthenticityScore: creator?.authenticityScore || 0,
+        EstimatedCost: creator?.estimatedCost || 0,
+        Location: creator?.location || "",
+        Notes: sc.notes || "",
+      };
+    });
+    exportToCSV(shortlist.name.replace(/\s+/g, "_"), rows);
+  }
 
   return (
     <div className="space-y-6 py-6">
@@ -215,6 +233,10 @@ export default function Shortlists() {
                       <DropdownMenu.Item asChild>
                         <Link to={`/shortlists/${shortlist._id}`}>View</Link>
                       </DropdownMenu.Item>
+                      <DropdownMenu.Item onSelect={() => handleExport(shortlist)} className="inline-flex w-full items-center gap-2">
+                        <Download size={14} /> Export to CSV
+                      </DropdownMenu.Item>
+                      <DropdownMenu.Separator />
                       <DropdownMenu.Item onSelect={() => handleDelete(shortlist._id)} className="text-danger">
                         Delete shortlist
                       </DropdownMenu.Item>

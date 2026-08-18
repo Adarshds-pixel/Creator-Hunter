@@ -56,7 +56,7 @@ export function DiscoveryInsightsChart({ data }: DiscoveryInsightsChartProps) {
               borderRadius: 8,
               fontSize: 12,
             }}
-            labelFormatter={(value) => formatAxisDate(String(value))}
+            labelFormatter={(value: unknown) => formatAxisDate(String(value))}
           />
           <Area
             type="monotone"

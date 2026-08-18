@@ -1,11 +1,10 @@
-// Originally slated for Developer 5 (Data + Integration + QA); implemented here
-// since an empty Creator collection blocks testing every other slice.
 import "dotenv/config";
 import mongoose from "mongoose";
 import fs from "node:fs";
 import fsp from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import bcrypt from "bcryptjs";
 import { connectDB } from "./config/db.js";
 import Creator from "./models/Creator.js";
 import User from "./models/User.js";
@@ -143,7 +142,6 @@ function clampScore(value: number): number {
   return Math.max(0, Math.min(100, value));
 }
 
-// Splits `total` into `parts` random non-negative shares that sum back to `total`.
 function splitRemainder(parts: number, total: number): number[] {
   if (parts <= 0) return [];
   const cuts = Array.from({ length: parts }, () => Math.random());
@@ -154,13 +152,19 @@ function splitRemainder(parts: number, total: number): number[] {
   return shares;
 }
 
-// Weighted follower-count bucket so the dataset isn't uniformly huge.
-function randomFollowers(): number {
+function pickFollowers(): number {
   const roll = Math.random();
-  if (roll < 0.45) return Math.round(randomBetween(1_000, 20_000)); // nano
-  if (roll < 0.8) return Math.round(randomBetween(20_000, 200_000)); // mid
-  if (roll < 0.95) return Math.round(randomBetween(200_000, 2_000_000)); // large
-  return Math.round(randomBetween(2_000_000, 10_000_000)); // mega
+  if (roll < 0.35) return Math.round(randomBetween(10_000, 50_000));
+  if (roll < 0.7) return Math.round(randomBetween(50_000, 200_000));
+  if (roll < 0.9) return Math.round(randomBetween(200_000, 1_000_000));
+  return Math.round(randomBetween(1_000_000, 5_000_000));
+}
+
+function pickLocation(): { city: string; country: string } {
+  if (Math.random() < 0.75) {
+    return { city: pick(INDIAN_CITIES), country: "India" };
+  }
+  return pick(INTERNATIONAL_LOCATIONS);
 }
 
 // Samples 3-5 unique tags for a category (falls back to an empty pool
@@ -239,23 +243,15 @@ async function downloadAvatars(): Promise<string[]> {
 function buildCreator(index: number, photoPool: string[]) {
   const category = pick(CATEGORIES);
   const platform = pick(PLATFORMS);
-  const isIndian = Math.random() < 0.8;
-  const location = isIndian
-    ? { city: pick(INDIAN_CITIES), country: "India" }
-    : pick(INTERNATIONAL_LOCATIONS);
+  const location = pickLocation();
+  const followers = pickFollowers();
 
-  const followers = randomFollowers();
-
-  // Smaller creators tend to have higher engagement; add noise so it isn't deterministic.
-  const baseEngagement =
-    followers < 20_000
-      ? randomBetween(4, 9)
-      : followers < 200_000
-        ? randomBetween(2.5, 6)
-        : followers < 2_000_000
-          ? randomBetween(1.5, 4)
-          : randomBetween(0.5, 2.5);
-  const engagementRate = round(Math.max(0.1, baseEngagement + randomBetween(-0.5, 0.5)), 2);
+  const platformEngagement = platform === "LinkedIn" ? 1.8 : platform === "YouTube" ? 3.2 : 4.5;
+  const sizePenalty = followers > 1_000_000 ? 0.6 : followers > 200_000 ? 0.8 : 1.0;
+  const engagementRate = round(
+    clampScore(platformEngagement * sizePenalty * randomBetween(0.7, 1.8)),
+    1
+  );
 
   const platformViewMultiplier = platform === "YouTube" ? 0.8 : platform === "Instagram" ? 0.4 : 0.15;
   const avgViews = Math.round(followers * platformViewMultiplier * randomBetween(0.6, 1.4));
@@ -313,7 +309,7 @@ function buildCreator(index: number, photoPool: string[]) {
     username,
     platform,
     profileUrl: `https://${platform.toLowerCase()}.com/${username}`,
-    ...(photoPool.length > 0 ? { profileImage: pick(photoPool) } : {}),
+    profileImage: photoPool.length > 0 ? pick(photoPool) : `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`,
     bio: CATEGORY_BIO[category],
     category,
     title: pick(CATEGORY_TITLES[category] ?? [category]),
@@ -477,7 +473,7 @@ async function seedCampaignPipelines(insertedCampaigns: InstanceType<typeof Camp
   }
 }
 
-async function seed() {
+async function seed(count = 2500) {
   await connectDB();
 
   console.log("Wiping existing collections (Creator, Campaign, CampaignCreator, Shortlist, Outreach)...");
@@ -492,7 +488,6 @@ async function seed() {
   console.log("Downloading creator avatars (idempotent — skips files already on disk)...");
   const photoPool = await downloadAvatars();
 
-  const count = 2500;
   console.log(`Generating ${count} creators...`);
   const creators = Array.from({ length: count }, (_, i) => buildCreator(i, photoPool));
 
@@ -509,25 +504,54 @@ async function seed() {
   console.log("Seeding campaign pipelines (CampaignCreator rows)...");
   await seedCampaignPipelines(insertedCampaigns);
 
+  const salt = await bcrypt.genSalt(10);
+  const demoHash = await bcrypt.hash("Password123!", salt);
+  const adminHash = await bcrypt.hash("AdminPass123!", salt);
+
   await User.findOneAndUpdate(
     { email: "demo@creatorhunter.app" },
     {
       name: "Demo User",
       email: "demo@creatorhunter.app",
-      passwordHash: "seed-placeholder-not-a-real-hash",
+      passwordHash: demoHash,
+      company: "Acme Creator Labs",
       role: "OWNER",
     },
     { upsert: true, returnDocument: "after" }
   );
 
-  console.log(
-    `Seeded ${count} creators, ${campaigns.length} campaigns, ${photoPool.length} avatars, and 1 demo user.`
+  await User.findOneAndUpdate(
+    { email: "admin@creatorhunter.app" },
+    {
+      name: "Admin User",
+      email: "admin@creatorhunter.app",
+      passwordHash: adminHash,
+      company: "Creator Hunter Inc",
+      role: "ADMIN",
+    },
+    { upsert: true, returnDocument: "after" }
   );
+
+  console.log(
+    `Seeded ${count} creators, ${campaigns.length} campaigns, ${photoPool.length} avatars, and demo/admin users.`
+  );
+}
+
+export async function seedDatabase(count = 2500) {
+  return seed(count);
+}
+
+async function runStandaloneSeed() {
+  await connectDB();
+  await seed(2500);
   await mongoose.disconnect();
   process.exit(0);
 }
 
-seed().catch((err) => {
-  console.error("Seed failed:", err);
-  process.exit(1);
-});
+// If executed directly via node/tsx
+if (import.meta.url === `file:///${process.argv[1]?.replace(/\\/g, "/")}`) {
+  runStandaloneSeed().catch((err) => {
+    console.error("Seed failed:", err);
+    process.exit(1);
+  });
+}

@@ -8,6 +8,7 @@ import {
   fetchCreators,
   addCreatorToCampaign,
   updateCampaignCreator,
+  exportToCSV,
   type CampaignDetailResponse,
 } from "../../lib/apiClient";
 import type { CampaignCreator, CampaignCreatorStatus } from "../../types/campaignCreator";
@@ -29,7 +30,6 @@ function nextStage(stage: CampaignCreatorStatus): CampaignCreatorStatus {
   return PIPELINE_STAGES[Math.min(idx + 1, PIPELINE_STAGES.length - 1)];
 }
 
-// Member C — Campaigns & Outreach
 export default function CampaignDetail() {
   const { id } = useParams<{ id: string }>();
   const [campaign, setCampaign] = useState<CampaignDetailResponse | null>(null);
@@ -52,6 +52,23 @@ export default function CampaignDetail() {
   useEffect(() => {
     load();
   }, [id]);
+
+  function handleExportCampaign() {
+    if (!campaign || !campaign.creators.length) return;
+    const rows = campaign.creators.map((cc) => ({
+      Campaign: campaign.name,
+      Brand: campaign.brand || "",
+      CreatorName: cc.creator?.name || "Unknown",
+      Platform: cc.creator?.platform || "",
+      Category: cc.creator?.category || "",
+      Followers: cc.creator?.followers || 0,
+      EngagementRate: `${cc.creator?.engagementRate || 0}%`,
+      MatchScore: `${cc.matchScore}%`,
+      PipelineStage: cc.status,
+      Notes: cc.notes || "",
+    }));
+    exportToCSV(`${campaign.name.replace(/\s+/g, "_")}_pipeline`, rows);
+  }
 
   async function handleAddSearch() {
     if (!searchTerm.trim()) return;
@@ -93,12 +110,19 @@ export default function CampaignDetail() {
 
   return (
     <div className="space-y-6 p-6">
-      <div>
-        <h1 className="text-xl font-semibold text-ink">{campaign.name}</h1>
-        <p className="text-sm text-ink-secondary">
-          {campaign.brand ?? "—"} · {campaign.status ?? "DRAFT"} · Budget ₹
-          {campaign.budget?.toLocaleString() ?? "—"}
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-ink">{campaign.name}</h1>
+          <p className="text-sm text-ink-secondary">
+            {campaign.brand ?? "—"} · {campaign.status ?? "DRAFT"} · Budget ₹
+            {campaign.budget?.toLocaleString() ?? "—"}
+          </p>
+        </div>
+        {campaign.creators.length > 0 && (
+          <Button variant="outline" className="text-xs" onClick={handleExportCampaign}>
+            Export Pipeline CSV
+          </Button>
+        )}
       </div>
 
       <Card className="space-y-3">

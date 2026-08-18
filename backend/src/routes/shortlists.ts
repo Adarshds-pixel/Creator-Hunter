@@ -7,24 +7,25 @@ import {
   shortlistAddCreatorSchema,
 } from "../middleware/validation.js";
 import { validateObjectId } from "../middleware/objectId.js";
+import { optionalAuth, type AuthenticatedRequest } from "../middleware/auth.js";
 
 const router = Router();
 
-// There's no auth/login yet, so a single seeded demo user (see seed.ts) backstops
-// the required Shortlist.userId field when the client doesn't supply one.
 const DEMO_USER_EMAIL = "demo@creatorhunter.app";
 
-async function resolveUserId(userId?: string): Promise<string> {
-  if (userId) return userId;
+async function resolveUserId(reqUser?: { _id: unknown }, userIdBody?: string): Promise<string> {
+  if (reqUser?._id) return String(reqUser._id);
+  if (userIdBody) return userIdBody;
   const demoUser = await User.findOne({ email: DEMO_USER_EMAIL }).lean();
   if (!demoUser) throw new Error("Demo user not seeded — run `npm run seed`");
   return String(demoUser._id);
 }
 
 // GET /api/shortlists
-router.get("/", async (_req: Request, res: Response) => {
+router.get("/", optionalAuth, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const shortlists = await Shortlist.find().lean();
+    const filter = req.user ? { userId: req.user._id } : {};
+    const shortlists = await Shortlist.find(filter).lean();
     res.json(shortlists);
   } catch (err) {
     console.error(err);
@@ -33,9 +34,9 @@ router.get("/", async (_req: Request, res: Response) => {
 });
 
 // POST /api/shortlists
-router.post("/", validateBody(shortlistCreateSchema), async (req: Request, res: Response) => {
+router.post("/", optionalAuth, validateBody(shortlistCreateSchema), async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const userId = await resolveUserId(req.body.userId);
+    const userId = await resolveUserId(req.user, req.body.userId);
     const shortlist = await Shortlist.create({ name: req.body.name, userId, creators: [] });
     res.status(201).json(shortlist);
   } catch (err) {

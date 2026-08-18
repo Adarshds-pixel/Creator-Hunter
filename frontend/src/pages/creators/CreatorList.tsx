@@ -84,7 +84,6 @@ function useIsMobile(breakpoint = 640): boolean {
   return isMobile;
 }
 
-// Member A — Search & Discovery
 export default function CreatorList() {
   const navigate = useNavigate();
   const [initial] = useState(loadPersisted);

@@ -5,11 +5,40 @@ import type { SearchFilters } from "../types/search";
 import type { CampaignCreator, CampaignCreatorStatus } from "../types/campaignCreator";
 import type { Outreach, OutreachStatusType } from "../types/outreach";
 import type { Shortlist } from "../types/shortlist";
+import type { User, AuthResponse } from "../types/user";
 
 export const apiClient = axios.create({
   baseURL: "/api",
   headers: { "Content-Type": "application/json" },
 });
+
+apiClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem("creator_hunter_token");
+  if (token && config.headers) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// --- Auth ---
+
+export function loginUser(payload: { email: string; password: string }): Promise<AuthResponse> {
+  return apiClient.post<AuthResponse>("/auth/login", payload).then((res) => res.data);
+}
+
+export function registerUser(payload: {
+  name: string;
+  email: string;
+  password: string;
+  company?: string;
+  role?: string;
+}): Promise<AuthResponse> {
+  return apiClient.post<AuthResponse>("/auth/register", payload).then((res) => res.data);
+}
+
+export function fetchCurrentUser(): Promise<{ user: User }> {
+  return apiClient.get<{ user: User }>("/auth/me").then((res) => res.data);
+}
 
 export interface SearchResponse {
   filters: SearchFilters;
@@ -226,4 +255,33 @@ export function createOutreach(payload: {
 
 export function updateOutreachStatus(id: string, status: OutreachStatusType): Promise<Outreach> {
   return apiClient.patch<Outreach>(`/outreach/${id}`, { status }).then((res) => res.data);
+}
+
+// --- CSV Export Utility ---
+
+export function exportToCSV(filename: string, rows: Record<string, unknown>[]) {
+  if (!rows || !rows.length) return;
+  const headers = Object.keys(rows[0]);
+  const csvContent = [
+    headers.join(","),
+    ...rows.map((row) =>
+      headers
+        .map((header) => {
+          const val = row[header] ?? "";
+          const str = typeof val === "object" ? JSON.stringify(val) : String(val);
+          return `"${str.replace(/"/g, '""')}"`;
+        })
+        .join(",")
+    ),
+  ].join("\n");
+
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const link = document.createElement("a");
+  const url = URL.createObjectURL(blob);
+  link.setAttribute("href", url);
+  link.setAttribute("download", `${filename}.csv`);
+  link.style.visibility = "hidden";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 }

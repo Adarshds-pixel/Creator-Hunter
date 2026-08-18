@@ -1,3 +1,4 @@
+import type React from "react";
 import { useNavigate } from "react-router-dom";
 import { Calendar, MoreVertical, Users, Wallet, Radio, ArrowRight } from "lucide-react";
 import { StatusPill } from "../ui/StatusPill";
@@ -59,13 +60,13 @@ export function CampaignCard({ campaign, onDeleted }: CampaignCardProps) {
               <button
                 type="button"
                 aria-label="Campaign options"
-                onClick={(e) => e.stopPropagation()}
+                onClick={(e: React.MouseEvent) => e.stopPropagation()}
                 className="text-steel-500 hover:text-ink"
               >
                 <MoreVertical size={16} />
               </button>
             </DropdownMenu.Trigger>
-            <DropdownMenu.Content onClick={(e) => e.stopPropagation()}>
+            <DropdownMenu.Content onClick={(e: React.MouseEvent) => e.stopPropagation()}>
               <DropdownMenu.Item onSelect={() => navigate(`/campaigns/${campaign._id}`)}>
                 View details
               </DropdownMenu.Item>

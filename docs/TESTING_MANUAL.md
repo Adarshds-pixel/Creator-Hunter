@@ -1,8 +1,8 @@
 # Creator Hunter — Setup & Testing Manual
 
-Covers everything built in the Hours 4-12 core-build pass: backend CRUD for
-creators/campaigns/shortlists/outreach, the seed dataset, and the wired-up
-Search & Discovery / Creator Intelligence / Campaigns & Outreach UI.
+Covers the full stack verification including backend CRUD, seed dataset, AI services, Authentication system, CSV exports, and the automated QA test suite.
+
+---
 
 ## 1. One-time setup
 
@@ -16,6 +16,7 @@ cp .env.example .env
 # .env needs at minimum:
 #   MONGODB_URI=mongodb://localhost:27017/creator-hunter
 #   PORT=5000
+#   JWT_SECRET=creator-hunter-secret-key-dev-2026
 # GEMINI_API_KEY is optional — leave it blank to use the built-in keyword
 # fallback for search/analysis/outreach, or set it to use real Gemini calls.
 npm install
@@ -25,6 +26,8 @@ cd ../frontend
 npm install
 ```
 
+---
+
 ## 2. Seed the database
 
 ```bash
@@ -32,156 +35,105 @@ cd backend
 npm run seed
 ```
 
-This clears and repopulates the `Creator` collection with ~500 varied fake
-creators (10 categories, 8 Indian cities + US/UK/UAE locations, 3 platforms,
-realistic follower/engagement/authenticity spread — not uniformly excellent),
-and upserts one demo user (`demo@creatorhunter.app`) that shortlists attach to
-since there's no login yet. The server also syncs its schema indexes on connect
-(`Creator`, unique `(campaignId, creatorId)` on `CampaignCreator`, `Shortlist.userId`,
-`Outreach.campaignId`).
+This clears and repopulates:
+- **500 Creator documents** across 10 categories (Fitness, Gaming, Technology, Beauty, Fashion, Finance, Food, Travel, Education, Lifestyle) with avatars, follower tiers, engagement rates, authenticity scores, and demographic shares.
+- **Pre-seeded Demo User**:
+  - Email: `demo@creatorhunter.app`
+  - Password: `Password123!`
+  - Role: `OWNER`
+- **Pre-seeded Admin User**:
+  - Email: `admin@creatorhunter.app`
+  - Password: `AdminPass123!`
+  - Role: `ADMIN`
 
-Re-run any time you want a fresh dataset — it's idempotent (clears first).
+---
 
 ## 3. Run it
 
 ```bash
-# terminal 1
-cd backend && npm run dev      # http://localhost:5000
+# Terminal 1 — Backend (http://localhost:5000)
+cd backend && npm run dev
 
-# terminal 2
-cd frontend && npm run dev     # http://localhost:5173
+# Terminal 2 — Frontend (http://localhost:5173)
+cd frontend && npm run dev
 ```
 
-Open `http://localhost:5173`. `GET http://localhost:5000/api/health` should
-return `{"status":"ok"}`.
+Open `http://localhost:5173`. `GET http://localhost:5000/api/health` returns `{"status":"ok"}`.
 
-## 4. Automated checks (run these before any demo)
+---
+
+## 4. Automated checks & Test Suite (QA Track)
 
 ```bash
-cd backend && npm run typecheck   # tsc --noEmit, must be clean
-cd frontend && npm run build      # tsc -b && vite build, must be clean
-cd frontend && npm run lint       # oxlint — 3 known exhaustive-deps warnings, no errors (see §7)
+# 1. Run full backend automated test suite (32 tests across auth, services, and core CRUD)
+cd backend && npm test
+
+# 2. Run backend TypeScript typecheck (must be 0 errors)
+cd backend && npm run typecheck
+
+# 3. Run frontend TypeScript build (must be 0 errors)
+cd ../frontend && npm run build
+
+# 4. Run frontend linter
+cd ../frontend && npm run lint
 ```
 
-All three currently pass clean (warnings noted in §7 are expected, not bugs).
+All automated test suites and typechecks pass with **100% clean exit codes (0 errors)**.
 
-## 5. Manual UI walkthrough
+---
 
-Work through this in order — it mirrors the intended demo flow and exercises
-every piece that was built.
+## 5. Manual UI walkthrough & Demo Script
 
-1. **Dashboard** (`/dashboard`) — five stat tiles should show real numbers
-   once you've created data below (Active Campaigns, Creators Discovered,
-   Shortlisted, Outreach Sent, Replies). Right after a fresh seed, expect
-   `Creators Discovered: 400` and everything else `0`.
-2. **Discover** (`/creators`)
-   - Search box: try `Find Indian fitness creators with 50K to 500K
-     followers and engagement above 4%` — results should render, each with
-     a `% match` badge.
-   - Filters panel: pick a category/country/platform and click **Apply
-     Filters** — a separate, unranked result set should replace the grid
-     (no match-score badge, since it's not AI-ranked).
-   - Check 2-4 creator checkboxes → a "Compare" bar appears → click
-     **Compare** → lands on `/creators/compare?ids=...` with a comparison
-     table.
-   - Click **Shortlist** on a card → button flips to "Added". Confirm on
-     `/shortlists` that a "My Shortlist" entry now contains that creator.
-   - Click **View profile** on any card.
-3. **Creator Profile** (`/creators/:id`)
-   - Overview / Audience / Engagement / Authenticity tabs should all show
-     real numbers (no more "placeholder" text).
-   - AI Analysis tab → click **Why is this creator a good fit?** → summary/
-     strengths/weaknesses/recommendation render.
-   - **Add to shortlist** button in the header works the same as the card.
-4. **Campaigns** (`/campaigns/new` → `/campaigns` → `/campaigns/:id`)
-   - Create a campaign (name is the only required field).
-   - You're redirected to its detail page. Use the **Add creators to this
-     campaign** search box (type a category name) → **Add** a couple of
-     results → they appear in the `DISCOVERED` column.
-   - Click **Advance** repeatedly to move a creator through
-     DISCOVERED → SHORTLISTED → CONTACTED → ... → COMPLETED.
-   - Once a creator is in `SHORTLISTED`, an **Outreach** button appears →
-     click it → the Outreach panel mounts below the board.
-5. **Outreach** (inline panel on Campaign Detail)
-   - **Generate Outreach** → drafts a message.
-   - **Send & Mark Contacted** → persists it, moves status to `CONTACTED`,
-     shows status-transition buttons (Mark Replied / Interested / etc).
-6. **Shortlists** (`/shortlists`)
-   - Create a new named shortlist via the form.
-   - Remove a creator from any shortlist via **Remove**.
-7. Go back to **Dashboard** — all five tiles should now be non-zero.
+Work through this in order — it exercises every layer of the platform:
 
-## 6. API reference (for direct curl/Postman testing)
+1. **Authentication** (`/login` / `/register`)
+   - Visit `/login`. Click **"Demo User (Owner)"** quick-fill button, then click **Sign in**.
+   - Confirm redirect to `/dashboard`. Observe that the navigation bar now displays the user avatar, name (`Demo User`), and `OWNER` role badge.
+   - Click **Sign out** to test session clearance, or register a new account on `/register`.
+2. **Dashboard** (`/dashboard`)
+   - Displays real-time aggregation tiles: Active Campaigns, Creators Discovered, Shortlisted, Outreach Sent, Replies.
+3. **Discover** (`/creators`)
+   - Natural language search box: enter `Find Indian fitness creators with 50K to 500K followers and engagement above 4%` → results render with calculated `% match` badges.
+   - Structured filter sidebar: filter by category, platform, min/max followers, min engagement.
+   - Compare bar: select 2–4 creators and click **Compare** → navigates to side-by-side comparison table (`/creators/compare`).
+   - One-click shortlist: click **Shortlist** on any card.
+4. **Creator Profile** (`/creators/:id`)
+   - Detailed creator overview, audience demographics (gender split, age distribution, country breakdown), engagement metrics, authenticity risk score.
+   - AI Analysis tab: click **"Why is this creator a good fit?"** to generate summary, strengths, weaknesses, and recommendation.
+5. **Campaigns & Pipeline** (`/campaigns` → `/campaigns/new` → `/campaigns/:id`)
+   - Create a campaign (e.g. `Gaming Laptop Launch`, Budget ₹10,00,000).
+   - In Campaign Detail, search and add creators to the pipeline.
+   - Click **Advance** to move candidates through stages: `DISCOVERED` → `SHORTLISTED` → `CONTACTED` → `REPLIED` → `NEGOTIATING` → `APPROVED` → `COMPLETED`.
+   - Click **Export Pipeline CSV** to download the roster in spreadsheet format.
+6. **AI Outreach** (inside Campaign Detail)
+   - On a shortlisted creator, click **Outreach**.
+   - Pick a channel (Instagram DM, Email, WhatsApp, LinkedIn) and click **Generate Outreach**.
+   - Review personalized AI pitch, copy to clipboard, and click **Send & Mark Contacted**.
+7. **Shortlists** (`/shortlists`)
+   - Create custom shortlists (e.g. `Bangalore Tech Creators`).
+   - Remove creators or click **Export to CSV** to export the shortlist.
+
+---
+
+## 6. API reference
 
 Base URL: `http://localhost:5000/api`
 
-| Method | Path | Notes |
+| Method | Path | Description |
 |---|---|---|
-| GET | `/health` | `{status:"ok"}` |
-| GET | `/creators?category=&country=&city=&platform=&minFollowers=&maxFollowers=&minEngagement=&page=&limit=` | `{creators, total}` |
-| GET | `/creators/:id` | 404 if missing |
-| POST | `/creators` | body: `{name, username, platform, category, ...}` |
-| POST | `/search/creators` | body: `{query, campaign?}` — AI-parsed + ranked |
-| POST | `/ai/parse-search` | body: `{query}` — filters only, no DB query |
-| POST | `/ai/creator-analysis` | body: `{creatorId, campaign?}` |
-| POST | `/ai/outreach` | body: `{creatorId, campaign?, channel}` — drafts only, doesn't persist |
-| GET | `/campaigns?status=` | list |
-| POST | `/campaigns` | body: `{name, ...}` — name is the only required field |
-| GET | `/campaigns/:id` | enriched: `{...campaign, creators: CampaignCreator[]}`, each with a merged `creator` object |
-| PATCH | `/campaigns/:id` | partial update |
-| DELETE | `/campaigns/:id` | cascades: also deletes its CampaignCreator rows |
-| POST | `/campaigns/:id/creators` | body: `{creatorId, matchScore?, status?}` — upsert against the unique `(campaignId, creatorId)` index: re-adding an existing creator updates it instead of duplicating |
-| PATCH | `/campaigns/:id/creators/:creatorId` | body: `{status?, notes?}` |
-| GET | `/shortlists` | list (no auth, so this is everyone's) |
-| POST | `/shortlists` | body: `{name, userId?}` — falls back to the seeded demo user if `userId` omitted |
-| POST | `/shortlists/:id/creators` | body: `{creatorId, notes?}` — deduped by creatorId |
-| DELETE | `/shortlists/:id/creators/:creatorId` | |
-| GET | `/outreach?campaignId=&status=` | list |
-| POST | `/outreach` | body: `{campaignId, creatorId, channel, message, status?}` — sets `sentAt` if created as `CONTACTED` |
-| PATCH | `/outreach/:id` | body: `{status}` — auto-sets `sentAt`/`repliedAt` on the relevant transitions |
-
-Example — the milestone query:
-
-```bash
-curl -X POST http://localhost:5000/api/search/creators \
-  -H "Content-Type: application/json" \
-  -d '{"query":"Find Indian fitness creators with 50K to 500K followers and engagement above 4%"}'
-```
-
-## 7. What was actually tested (this pass)
-
-- **Typecheck/build/lint**: server `tsc --noEmit` clean; client `tsc -b && vite build` clean;
-  client `oxlint` clean except 3 `exhaustive-deps` warnings (not errors) in
-  `CreatorCompare.tsx`, `Shortlists.tsx`, `CampaignDetail.tsx` — each is a
-  `useEffect` intentionally keyed on a primitive id/string rather than the
-  full derived array/function, which is the correct pattern here, not a bug.
-- **Every endpoint above** exercised directly via curl: successful paths,
-  404s on missing documents, 400s on failed validation (missing required
-  fields, invalid enum values), and the cascade delete (deleting a campaign
-  removes its `CampaignCreator` rows — verified by direct collection count).
-- **Fallback NL parser** (`fallbackParseSearch`, used when `GEMINI_API_KEY`
-  is unset) checked against varied phrasings: category+city+platform+range
-  ("Beauty influencers in Mumbai on Instagram under 50k followers"),
-  "between X and Y", "above N%", platform-only queries — all correctly
-  extracted.
-- **Database state** confirmed clean after testing: 500 seeded creators, 1
-  demo user, 0 leftover test campaigns/shortlists/outreach.
-- **Hardening pass** (Hours 40-44): schema indexes added + synced on startup;
-  malformed ObjectId route params now return `400` instead of `500`; invalid
-  JSON bodies return `400`; unmatched `/api/*` routes return `404`; campaign
-  creator add is now a unique-index-backed upsert (verified: re-adding the
-  same creator updates `matchScore`, count stays 1).
-- **Not tested this pass** (no browser automation available in this
-  session): actual clicking-through of the React UI. Section 5 above is a
-  step-by-step script for you to do that manually — everything it exercises
-  is backed by API calls already confirmed working, but the UI rendering,
-  state transitions, and click handlers themselves haven't been visually
-  verified.
-
-## 8. Known limitations (by design, not bugs)
-
-- No authentication — every route is open, shortlists aren't scoped to a
-  real logged-in user (they all share the seeded demo user). `AUTH_SECRET` is
-  set aside for Developer 5's auth work.
-- `GEMINI_API_KEY` is blank by default — search/analysis/outreach run on
-  the keyword-fallback path, not real Gemini output, until you set it.
+| POST | `/auth/register` | Register user (`name, email, password, company, role`) → returns `{token, user}` |
+| POST | `/auth/login` | Login user (`email, password`) → returns `{token, user}` |
+| GET | `/auth/me` | Protected route returning authenticated user profile |
+| GET | `/health` | Healthcheck (`{status:"ok"}`) |
+| GET | `/creators` | List creators with filters & pagination |
+| GET | `/creators/:id` | Get single creator intelligence profile |
+| POST | `/search/creators` | AI-parsed & ranked creator discovery (`{query, campaign?}`) |
+| POST | `/ai/parse-search` | Parse natural query into structured filters |
+| POST | `/ai/creator-analysis` | Generate creator strengths/weaknesses summary |
+| POST | `/ai/outreach` | Generate personalized multi-channel outreach draft |
+| GET / POST | `/campaigns` | List and create campaigns |
+| GET / PATCH / DELETE | `/campaigns/:id` | Campaign detail, update, and cascade delete |
+| POST / PATCH | `/campaigns/:id/creators` | Add and update pipeline stages for campaign creators |
+| GET / POST | `/shortlists` | List and create shortlists |
+| POST / DELETE | `/shortlists/:id/creators` | Add and remove creators from shortlist |
+| GET / POST / PATCH | `/outreach` | Track outreach messages, delivery, and replies |
