@@ -1,7 +1,33 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/Button";
+import { Select } from "../../components/ui/Select";
+import { AuthBrandMark } from "../../components/auth/AuthBrandMark";
+import { AuthHeroPanel } from "../../components/auth/AuthHeroPanel";
 import { useAuth } from "../../context/AuthContext";
+
+const FEATURES = [
+  "AI-powered creator matching & ranking",
+  "Multi-platform campaign management",
+  "Real-time audience analytics & insights",
+];
+
+function FeatureChecklist() {
+  return (
+    <div className="space-y-2.5">
+      {FEATURES.map((feat) => (
+        <div key={feat} className="flex items-center gap-3">
+          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-white/90">
+            <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z" />
+            </svg>
+          </div>
+          <span className="text-sm text-white/75">{feat}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function Register() {
   const navigate = useNavigate();
@@ -49,83 +75,21 @@ export default function Register() {
   };
 
   return (
-    <div className="flex min-h-screen">
-      {/* ────────────────── LEFT HERO PANEL ────────────────── */}
-      <div
-        className={`
-          login-hero relative hidden lg:flex lg:w-[52%] flex-col justify-between p-10 xl:p-14
-          transition-opacity duration-700 ${mounted ? "opacity-100" : "opacity-0"}
-        `}
-      >
-        {/* Animated orbs (same as login) */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="login-orb login-orb--1" />
-          <div className="login-orb login-orb--2" />
-          <div className="login-orb login-orb--3" />
-        </div>
-
-        {/* Brand */}
-        <div className="relative z-10">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 backdrop-blur-sm text-white font-bold text-base border border-white/[0.12]">
-              CH
-            </div>
-            <span className="text-white font-semibold text-lg tracking-tight">
-              Creator Hunter
-            </span>
-          </div>
-        </div>
-
-        {/* Hero copy */}
-        <div className="relative z-10 max-w-lg">
-          <h1
-            className={`
-              text-[2.5rem] xl:text-[3rem] font-bold leading-[1.1] tracking-tight text-white
-              transition-all duration-700 delay-200 ${mounted ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"}
-            `}
-          >
+    <div className="flex h-screen overflow-hidden">
+      <AuthHeroPanel
+        eyebrow="AI-Powered Platform"
+        headline={
+          <>
             Start discovering
             <br />
             <span className="login-hero-gradient">top creators</span>
             <br />
             today
-          </h1>
-          <p
-            className={`
-              mt-5 text-base text-white/65 leading-relaxed max-w-sm
-              transition-all duration-700 delay-300 ${mounted ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"}
-            `}
-          >
-            Join thousands of brands and agencies using AI-powered analytics
-            to find and partner with the right creators.
-          </p>
-        </div>
-
-        {/* Features list */}
-        <div
-          className={`
-            relative z-10 max-w-md
-            transition-all duration-700 delay-500 ${mounted ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"}
-          `}
-        >
-          <div className="space-y-3">
-            {[
-              "AI-powered creator matching & ranking",
-              "Multi-platform campaign management",
-              "Real-time audience analytics & insights",
-            ].map((feat) => (
-              <div key={feat} className="flex items-center gap-3">
-                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-white/90">
-                  <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor">
-                    <path d="M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z" />
-                  </svg>
-                </div>
-                <span className="text-sm text-white/75">{feat}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+          </>
+        }
+        subcopy="Join brands and agencies using AI-powered analytics to find and partner with the right creators."
+        bottomContent={<FeatureChecklist />}
+      />
 
       {/* ────────────────── RIGHT FORM PANEL ────────────────── */}
       <div className="flex flex-1 flex-col justify-center bg-paper px-6 sm:px-12 lg:px-16 xl:px-20">
@@ -137,14 +101,7 @@ export default function Register() {
         >
           {/* Mobile brand */}
           <div className="mb-8 lg:hidden">
-            <div className="flex items-center gap-2.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-teal-soft text-teal font-bold text-sm border border-teal/20">
-                CH
-              </div>
-              <span className="font-semibold text-ink text-base tracking-tight">
-                Creator Hunter
-              </span>
-            </div>
+            <AuthBrandMark size="sm" />
           </div>
 
           {/* Heading */}
@@ -203,16 +160,22 @@ export default function Register() {
               <label className="block text-sm font-medium text-ink mb-1.5">
                 Email address <span className="text-danger">*</span>
               </label>
-              <input
-                id="register-email"
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="alex@agency.com"
-                className="login-input"
-                autoComplete="email"
-              />
+              <div className="relative">
+                <svg className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-secondary" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <rect x="2.5" y="4.5" width="15" height="11" rx="1.5" />
+                  <path d="M3 5.5l7 5.5 7-5.5" />
+                </svg>
+                <input
+                  id="register-email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="alex@agency.com"
+                  className="login-input pl-9"
+                  autoComplete="email"
+                />
+              </div>
             </div>
 
             <div>
@@ -220,6 +183,10 @@ export default function Register() {
                 Password <span className="text-danger">*</span>
               </label>
               <div className="relative">
+                <svg className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-secondary" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <rect x="4.5" y="8.5" width="11" height="8" rx="1.5" />
+                  <path d="M6.5 8.5V6a3.5 3.5 0 017 0v2.5" />
+                </svg>
                 <input
                   id="register-password"
                   type={showPassword ? "text" : "password"}
@@ -228,7 +195,7 @@ export default function Register() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Minimum 6 characters"
-                  className="login-input pr-10"
+                  className="login-input pl-9 pr-10"
                   autoComplete="new-password"
                 />
                 <button
@@ -252,22 +219,17 @@ export default function Register() {
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-ink mb-1.5">
-                Role
-              </label>
-              <select
-                id="register-role"
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
-                className="login-input"
-              >
-                <option value="CAMPAIGN_MANAGER">Campaign Manager</option>
-                <option value="OWNER">Brand Owner</option>
-                <option value="RESEARCHER">Talent Researcher</option>
-                <option value="ADMIN">Platform Administrator</option>
-              </select>
-            </div>
+            <Select
+              label="Role"
+              id="register-role"
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+            >
+              <option value="CAMPAIGN_MANAGER">Campaign Manager</option>
+              <option value="OWNER">Brand Owner</option>
+              <option value="RESEARCHER">Talent Researcher</option>
+              <option value="ADMIN">Platform Administrator</option>
+            </Select>
 
             <Button
               type="submit"

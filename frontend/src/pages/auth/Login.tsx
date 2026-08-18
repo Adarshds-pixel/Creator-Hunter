@@ -1,25 +1,20 @@
 import { useEffect, useState, useRef, type FormEvent } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "../../components/ui/Button";
+import { AuthBrandMark } from "../../components/auth/AuthBrandMark";
+import { AuthHeroPanel } from "../../components/auth/AuthHeroPanel";
 import { useAuth } from "../../context/AuthContext";
 
-/* ── Animated floating orbs for the hero panel ── */
-function FloatingOrbs() {
+function TrustPanel() {
   return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      <div className="login-orb login-orb--1" />
-      <div className="login-orb login-orb--2" />
-      <div className="login-orb login-orb--3" />
-    </div>
-  );
-}
-
-/* ── Stat pill shown in the hero panel ── */
-function StatPill({ value, label }: { value: string; label: string }) {
-  return (
-    <div className="flex items-center gap-2.5 rounded-full bg-white/[0.06] backdrop-blur-sm border border-white/[0.08] px-4 py-2">
-      <span className="text-sm font-semibold text-white">{value}</span>
-      <span className="text-xs text-white/60">{label}</span>
+    <div className="rounded-2xl bg-white/[0.05] backdrop-blur-sm border border-white/[0.08] p-4">
+      <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mb-2 text-white/40" aria-hidden>
+        <path d="M3 10h5M13.5 4.5L18 10l-4.5 5.5M3 10l4-5.5M3 10l4 5.5" />
+      </svg>
+      <p className="text-sm text-white/75 leading-relaxed">
+        From campaign brief to ranked shortlist to personalized outreach —
+        one workflow, not a spreadsheet.
+      </p>
     </div>
   );
 }
@@ -78,93 +73,22 @@ export default function Login() {
   };
 
   return (
-    <div className="flex min-h-screen">
-      {/* ────────────────── LEFT HERO PANEL ────────────────── */}
-      <div
-        className={`
-          login-hero relative hidden lg:flex lg:w-[52%] flex-col justify-between p-10 xl:p-14
-          transition-opacity duration-700 ${mounted ? "opacity-100" : "opacity-0"}
-        `}
-      >
-        <FloatingOrbs />
-
-        {/* Brand */}
-        <div className="relative z-10">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 backdrop-blur-sm text-white font-bold text-base border border-white/[0.12]">
-              CH
-            </div>
-            <span className="text-white font-semibold text-lg tracking-tight">
-              Creator Hunter
-            </span>
-          </div>
-        </div>
-
-        {/* Hero copy */}
-        <div className="relative z-10 max-w-lg">
-          <h1
-            className={`
-              text-[2.5rem] xl:text-[3rem] font-bold leading-[1.1] tracking-tight text-white
-              transition-all duration-700 delay-200 ${mounted ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"}
-            `}
-          >
+    <div className="flex h-screen overflow-hidden">
+      <AuthHeroPanel
+        eyebrow="AI-Powered Platform"
+        headline={
+          <>
             Find the perfect
             <br />
             <span className="login-hero-gradient">creators</span> for
             <br />
             your brand
-          </h1>
-          <p
-            className={`
-              mt-5 text-base text-white/65 leading-relaxed max-w-sm
-              transition-all duration-700 delay-300 ${mounted ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"}
-            `}
-          >
-            AI-powered discovery, audience analytics, and campaign management
-            — all in one platform built for modern agencies.
-          </p>
-
-          {/* Stat pills */}
-          <div
-            className={`
-              mt-8 flex flex-wrap gap-3
-              transition-all duration-700 delay-500 ${mounted ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"}
-            `}
-          >
-            <StatPill value="500" label="Creators" />
-            <StatPill value="14" label="Cities" />
-            <StatPill value="10" label="Categories" />
-          </div>
-        </div>
-
-        {/* Testimonial */}
-        <div
-          className={`
-            relative z-10 max-w-md
-            transition-all duration-700 delay-[600ms] ${mounted ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"}
-          `}
-        >
-          <div className="rounded-2xl bg-white/[0.05] backdrop-blur-sm border border-white/[0.08] p-5">
-            <p className="text-sm text-white/80 leading-relaxed italic">
-              &ldquo;Creator Hunter cut our influencer sourcing time by 80%.
-              The AI ranking is incredibly accurate.&rdquo;
-            </p>
-            <div className="mt-3 flex items-center gap-3">
-              <div className="h-8 w-8 rounded-full bg-white/10 flex items-center justify-center text-xs text-white font-semibold">
-                SP
-              </div>
-              <div>
-                <p className="text-xs font-medium text-white/90">
-                  Sarah Park
-                </p>
-                <p className="text-[11px] text-white/50">
-                  Head of Influencer Marketing, Acme Brands
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+          </>
+        }
+        subcopy="AI-powered discovery, audience analytics, and campaign management — all in one platform built for modern agencies."
+        bottomContent={<TrustPanel />}
+        showTrustBadges
+      />
 
       {/* ────────────────── RIGHT FORM PANEL ────────────────── */}
       <div className="flex flex-1 flex-col justify-center bg-paper px-6 sm:px-12 lg:px-16 xl:px-20">
@@ -176,24 +100,25 @@ export default function Login() {
         >
           {/* Mobile brand (shown only on smaller screens) */}
           <div className="mb-8 lg:hidden">
-            <div className="flex items-center gap-2.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-teal-soft text-teal font-bold text-sm border border-teal/20">
-                CH
-              </div>
-              <span className="font-semibold text-ink text-base tracking-tight">
-                Creator Hunter
-              </span>
-            </div>
+            <AuthBrandMark size="sm" />
           </div>
 
           {/* Heading */}
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold tracking-tight text-ink">
-              Welcome back
-            </h2>
-            <p className="mt-1.5 text-sm text-ink-secondary">
-              Sign in to your account to continue
-            </p>
+          <div className="mb-8 flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-2xl font-bold tracking-tight text-ink">
+                Welcome back
+              </h2>
+              <p className="mt-1.5 text-sm text-ink-secondary">
+                Sign in to your account to continue
+              </p>
+            </div>
+            <div className="hidden sm:flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-teal-soft border border-teal/20 text-teal">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M10 2.5l6 2.5v4.4c0 3.8-2.5 6.7-6 7.6-3.5-.9-6-3.8-6-7.6V5l6-2.5z" />
+                <path d="M7.2 10l1.9 1.9 3.7-3.7" />
+              </svg>
+            </div>
           </div>
 
           {/* Error */}
@@ -216,17 +141,23 @@ export default function Login() {
               <label className="block text-sm font-medium text-ink mb-1.5">
                 Email address
               </label>
-              <input
-                ref={emailRef}
-                id="login-email"
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@company.com"
-                className="login-input"
-                autoComplete="email"
-              />
+              <div className="relative">
+                <svg className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-secondary" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <rect x="2.5" y="4.5" width="15" height="11" rx="1.5" />
+                  <path d="M3 5.5l7 5.5 7-5.5" />
+                </svg>
+                <input
+                  ref={emailRef}
+                  id="login-email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@company.com"
+                  className="login-input pl-9"
+                  autoComplete="email"
+                />
+              </div>
             </div>
 
             <div>
@@ -243,6 +174,10 @@ export default function Login() {
                 </button>
               </div>
               <div className="relative">
+                <svg className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-secondary" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <rect x="4.5" y="8.5" width="11" height="8" rx="1.5" />
+                  <path d="M6.5 8.5V6a3.5 3.5 0 017 0v2.5" />
+                </svg>
                 <input
                   id="login-password"
                   type={showPassword ? "text" : "password"}
@@ -250,7 +185,7 @@ export default function Login() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="login-input pr-10"
+                  className="login-input pl-9 pr-10"
                   autoComplete="current-password"
                 />
                 <button

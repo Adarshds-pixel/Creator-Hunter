@@ -38,7 +38,12 @@ body {
 
 /* ═══════════════════════════════════════════════════════
    Login / Register — Premium Auth Pages
-   ═══════════════════════════════════════════════════════ */
+   ═══════════════════════════════════════════════════════
+   Wrapped in @layer components so Tailwind utilities (e.g. the pl-9/pr-10
+   icon padding on .login-input) can win the cascade over these rules —
+   unlayered CSS always beats @layer'd CSS regardless of source order or
+   specificity, which silently broke those overrides before this wrapper. */
+@layer components {
 
 /* Hero panel — rich dark gradient background */
 .login-hero {
@@ -110,6 +115,22 @@ body {
   80% { transform: translate(15px, -15px) scale(0.94); }
 }
 
+/* Floating creator preview cards (hero panel) — gentle bob, staggered via
+   nth-child so the row doesn't move in lockstep. */
+.login-float-card {
+  animation: loginCardFloat 7s ease-in-out infinite;
+}
+.login-float-card:nth-child(2) {
+  animation-delay: 1.4s;
+}
+.login-float-card:nth-child(3) {
+  animation-delay: 2.8s;
+}
+@keyframes loginCardFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
 /* Form inputs */
 .login-input {
   display: block;
@@ -158,3 +179,5 @@ body {
   font-weight: 600;
   letter-spacing: 0.01em;
 }
+
+} /* @layer components */
