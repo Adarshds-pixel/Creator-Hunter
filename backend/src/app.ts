@@ -10,13 +10,20 @@ import searchRouter from "./routes/search.js";
 import aiRouter from "./routes/ai.js";
 import authRouter from "./routes/auth.js";
 import statsRouter from "./routes/stats.js";
+import paymentsRouter, { razorpayWebhook } from "./routes/payments.js";
 
 dotenv.config();
 
 export const app = express();
 
+// The Razorpay webhook must see the raw request body for HMAC verification,
+// so it is registered before the global JSON parser consumes the stream.
+app.post("/api/payments/webhook", express.raw({ type: "*/*" }), razorpayWebhook);
+
+// Campaign payloads can embed large creator/result sets (~150KB+), so the
+// default 100kb JSON limit is too tight.
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "2mb" }));
 
 app.use("/api/auth", authRouter);
 app.use("/api/creators", creatorsRouter);
@@ -26,6 +33,7 @@ app.use("/api/outreach", outreachRouter);
 app.use("/api/search", searchRouter);
 app.use("/api/ai", aiRouter);
 app.use("/api/stats", statsRouter);
+app.use("/api/payments", paymentsRouter);
 
 app.get("/api/health", (_req: Request, res: Response) => {
   res.json({ status: "ok" });

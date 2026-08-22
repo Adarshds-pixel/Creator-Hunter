@@ -119,6 +119,21 @@ export const outreachUpdateSchema = z.object({
   status: z.enum(OUTREACH_STATUSES),
 });
 
+export const creatorImportSchema = z.object({
+  url: z.string().min(3),
+});
+
+export const paymentOrderSchema = z.object({
+  campaignId: z.string().min(1),
+  creatorId: z.string().min(1),
+});
+
+export const paymentVerifySchema = z.object({
+  orderId: z.string().min(1),
+  paymentId: z.string().min(1),
+  signature: z.string().min(1),
+});
+
 export function validateBody(schema: z.ZodType) {
   return (req: Request, res: Response, next: NextFunction) => {
     const result = schema.safeParse(req.body);

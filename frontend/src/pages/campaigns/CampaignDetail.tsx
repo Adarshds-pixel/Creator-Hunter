@@ -9,10 +9,15 @@ import {
   addCreatorToCampaign,
   updateCampaignCreator,
   exportToCSV,
+  createPaymentOrder,
+  verifyPayment,
+  fetchCampaignPayments,
   type CampaignDetailResponse,
 } from "../../lib/apiClient";
+import { openRazorpayCheckout, type RazorpayCheckoutResult } from "../../lib/razorpay";
 import type { CampaignCreator, CampaignCreatorStatus } from "../../types/campaignCreator";
 import type { Creator } from "../../types/creator";
+import type { Payment } from "../../types/payment";
 
 const PIPELINE_STAGES: CampaignCreatorStatus[] = [
   "DISCOVERED",
@@ -38,6 +43,9 @@ export default function CampaignDetail() {
   const [searchResults, setSearchResults] = useState<Creator[]>([]);
   const [searching, setSearching] = useState(false);
   const [activeOutreachCreatorId, setActiveOutreachCreatorId] = useState<string | null>(null);
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [payingCreatorId, setPayingCreatorId] = useState<string | null>(null);
+  const [payError, setPayError] = useState<string | null>(null);
 
   async function load() {
     if (!id) return;
@@ -46,6 +54,47 @@ export default function CampaignDetail() {
       setCampaign(data);
     } catch {
       setError("Could not load this campaign.");
+    }
+    try {
+      setPayments(await fetchCampaignPayments(id));
+    } catch {
+      // Payment history is non-critical — leave the list as-is.
+    }
+  }
+
+  function paidAdvanceFor(creatorId: string): Payment | undefined {
+    return payments.find((p) => p.creatorId === creatorId && p.status === "PAID");
+  }
+
+  async function handlePayAdvance(creator: CampaignCreator) {
+    if (!id || !campaign) return;
+    setPayingCreatorId(creator.creatorId);
+    setPayError(null);
+    let checkoutResult: RazorpayCheckoutResult;
+    try {
+      const order = await createPaymentOrder(id, creator.creatorId);
+      checkoutResult = await openRazorpayCheckout(order, creator.creator?.name ?? "creator");
+    } catch (err) {
+      setPayingCreatorId(null);
+      if (err instanceof Error && err.message === "Payment cancelled") return;
+      setPayError(
+        err instanceof Error && "response" in err
+          ? String((err as { response?: { data?: { error?: string } } }).response?.data?.error ?? "Payment failed.")
+          : "Payment could not be started."
+      );
+      return;
+    }
+    try {
+      await verifyPayment({
+        orderId: checkoutResult.razorpay_order_id,
+        paymentId: checkoutResult.razorpay_payment_id,
+        signature: checkoutResult.razorpay_signature,
+      });
+      await load();
+    } catch {
+      setPayError("Payment succeeded but verification failed — it will confirm via webhook.");
+    } finally {
+      setPayingCreatorId(null);
     }
   }
 
@@ -101,6 +150,10 @@ export default function CampaignDetail() {
   if (error) return <p className="p-6 text-sm text-caution">{error}</p>;
   if (!campaign) return <p className="p-6 text-sm text-ink-secondary">Loading campaign...</p>;
 
+  const payErrorBanner = payError && (
+    <p className="rounded-md bg-caution-soft px-3 py-2 text-sm text-caution">{payError}</p>
+  );
+
   const grouped = new Map<string, CampaignCreator[]>();
   for (const stage of PIPELINE_STAGES) grouped.set(stage, []);
   for (const cc of campaign.creators) {
@@ -124,6 +177,8 @@ export default function CampaignDetail() {
           </Button>
         )}
       </div>
+
+      {payErrorBanner}
 
       <Card className="space-y-3">
         <p className="text-sm font-medium text-ink">Add creators to this campaign</p>
@@ -184,6 +239,26 @@ export default function CampaignDetail() {
                         Outreach
                       </button>
                     )}
+                    {stage === "APPROVED" &&
+                      (() => {
+                        const paid = paidAdvanceFor(cc.creatorId);
+                        if (paid) {
+                          return (
+                            <span className="rounded bg-success-soft px-2 py-0.5 font-medium text-success">
+                              Advance paid ₹{paid.amount.toLocaleString()}
+                            </span>
+                          );
+                        }
+                        return (
+                          <button
+                            onClick={() => handlePayAdvance(cc)}
+                            disabled={payingCreatorId === cc.creatorId}
+                            className="rounded bg-teal px-2 py-0.5 font-medium text-white hover:bg-teal/90 disabled:opacity-60"
+                          >
+                            {payingCreatorId === cc.creatorId ? "Paying…" : "Pay advance"}
+                          </button>
+                        );
+                      })()}
                     {stage !== "COMPLETED" && (
                       <button
                         onClick={() => handleAdvance(cc, nextStage(stage))}

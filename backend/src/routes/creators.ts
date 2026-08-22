@@ -1,10 +1,11 @@
 import { Router, type Request, type Response } from "express";
 import Creator from "../models/Creator.js";
 import Campaign from "../models/Campaign.js";
-import { validateBody, creatorCreateSchema } from "../middleware/validation.js";
+import { validateBody, creatorCreateSchema, creatorImportSchema } from "../middleware/validation.js";
 import { calculateCreatorScore, calculateMatchScore } from "../services/ranking.js";
 import { getFilteredCreatorStats } from "../services/stats.js";
 import { validateObjectId } from "../middleware/objectId.js";
+import { importYouTubeProfile, ProviderError } from "../services/providers/youtube.js";
 
 const router = Router();
 
@@ -105,6 +106,27 @@ router.get("/:id", validateObjectId("id"), async (req: Request, res: Response) =
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to fetch creator" });
+  }
+});
+
+// POST /api/creators/import — fetch a live profile from a provider and upsert it.
+router.post("/import", validateBody(creatorImportSchema), async (req: Request, res: Response) => {
+  try {
+    const payload = await importYouTubeProfile(req.body.url);
+
+    const creator = await Creator.findOneAndUpdate(
+      { source: payload.source, sourceId: payload.sourceId },
+      { $set: payload },
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    ).lean();
+
+    res.status(201).json(creator);
+  } catch (err) {
+    if (err instanceof ProviderError) {
+      return res.status(err.status).json({ error: err.message });
+    }
+    console.error(err);
+    res.status(500).json({ error: "Failed to import creator" });
   }
 });
 

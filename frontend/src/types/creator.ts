@@ -68,6 +68,10 @@ export interface Creator {
 
   creatorScore?: number;
   creatorScoreBreakdown?: CreatorScoreBreakdown;
+
+  source?: string;
+  sourceId?: string;
+  lastSyncedAt?: string;
 }
 
 export interface CreatorAnalysis {

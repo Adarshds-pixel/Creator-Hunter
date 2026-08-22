@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Users, TrendingUp, UserPlus, ShieldCheck, Filter as FilterIcon, LayoutGrid, List, ChevronDown } from "lucide-react";
+import { YoutubeGlyphIcon } from "../../components/creators/platformIcons";
 import { SearchBar } from "../../components/search/SearchBar";
 import { Filters, INITIAL_FILTERS, type FilterState } from "../../components/search/Filters";
 import { CreatorCard } from "../../components/creators/CreatorCard";
@@ -11,7 +12,8 @@ import { DropdownMenu } from "../../components/ui/DropdownMenu";
 import { NotificationsMenu } from "../../components/layout/NotificationsMenu";
 import { Sheet } from "../../components/ui/Sheet";
 import { Skeleton } from "../../components/ui/Skeleton";
-import { fetchCreators, type CreatorSetStats } from "../../lib/apiClient";
+import { Modal } from "../../components/ui/Modal";
+import { fetchCreators, importCreatorFromYouTube, type CreatorSetStats } from "../../lib/apiClient";
 import type { Creator } from "../../types/creator";
 
 const STORAGE_KEY = "discover-state";
@@ -70,6 +72,33 @@ export default function CreatorList() {
   const isMobile = useIsMobile();
   const didInitialLoad = useRef(!!initial);
   const searchRequestId = useRef(0);
+
+  const [importOpen, setImportOpen] = useState(false);
+  const [importUrl, setImportUrl] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+
+  async function handleImport() {
+    if (!importUrl.trim()) return;
+    setImporting(true);
+    setImportError(null);
+    try {
+      const creator = await importCreatorFromYouTube(importUrl.trim());
+      setResults((prev) => [creator, ...prev]);
+      setStats((prev) => (prev ? { ...prev, count: prev.count + 1 } : prev));
+      setSearched(true);
+      setImportOpen(false);
+      setImportUrl("");
+    } catch (err) {
+      const message =
+        err instanceof Error && "response" in err
+          ? String((err as { response?: { data?: { error?: string } } }).response?.data?.error ?? "Import failed.")
+          : "Import failed.";
+      setImportError(message);
+    } finally {
+      setImporting(false);
+    }
+  }
 
   // Persist on every relevant change — not just on unmount — so switching
   // tabs or a hard navigation doesn't lose the last search either.
@@ -149,6 +178,9 @@ export default function CreatorList() {
         <div className="flex items-center gap-3">
           {photoPool.length > 0 && <AvatarStack photos={photoPool} count={stats?.count ?? 0} />}
           <NotificationsMenu />
+          <Button variant="outline" onClick={() => setImportOpen(true)} className="inline-flex items-center gap-2">
+            <YoutubeGlyphIcon width={16} height={16} /> Import from YouTube
+          </Button>
           <Link to="/campaigns/new" className={buttonClasses("primary")}>
             + New campaign
           </Link>
@@ -156,6 +188,35 @@ export default function CreatorList() {
       </div>
 
       <SearchBar onSearch={handleSearch} loading={loading} initialQuery={query} />
+
+      <Modal
+        open={importOpen}
+        onOpenChange={(open) => {
+          setImportOpen(open);
+          if (!open) setImportError(null);
+        }}
+        title="Import from YouTube"
+        description="Paste a channel URL or @handle — live profile stats are fetched and saved to your database."
+      >
+        <div className="space-y-3">
+          <input
+            value={importUrl}
+            onChange={(e) => setImportUrl(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleImport()}
+            placeholder="https://youtube.com/@handle"
+            className="w-full rounded-md border-[0.5px] border-border bg-surface px-3 py-2 text-sm text-ink focus:border-teal focus:outline-none"
+          />
+          {importError && <p className="text-sm text-caution">{importError}</p>}
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setImportOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleImport} disabled={importing || !importUrl.trim()}>
+              {importing ? "Fetching…" : "Fetch & Save"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       {isMobile ? (
         <>

@@ -6,6 +6,7 @@ import type { CampaignCreator, CampaignCreatorStatus } from "../types/campaignCr
 import type { Outreach, OutreachStatusType } from "../types/outreach";
 import type { Shortlist } from "../types/shortlist";
 import type { User, AuthResponse } from "../types/user";
+import type { Payment, PaymentOrderResponse } from "../types/payment";
 
 export const apiClient = axios.create({
   baseURL: "/api",
@@ -147,6 +148,32 @@ export function fetchCreator(id: string, campaignId?: string): Promise<Creator> 
 
 export function createCreator(payload: Partial<Creator>): Promise<Creator> {
   return apiClient.post<Creator>("/creators", payload).then((res) => res.data);
+}
+
+// --- Live import ---
+
+export function importCreatorFromYouTube(url: string): Promise<Creator> {
+  return apiClient.post<Creator>("/creators/import", { url }).then((res) => res.data);
+}
+
+// --- Payments ---
+
+export function createPaymentOrder(campaignId: string, creatorId: string): Promise<PaymentOrderResponse> {
+  return apiClient.post<PaymentOrderResponse>("/payments/order", { campaignId, creatorId }).then((res) => res.data);
+}
+
+export function verifyPayment(payload: {
+  orderId: string;
+  paymentId: string;
+  signature: string;
+}): Promise<Payment> {
+  return apiClient.post<Payment>("/payments/verify", payload).then((res) => res.data);
+}
+
+export function fetchCampaignPayments(campaignId?: string): Promise<Payment[]> {
+  return apiClient
+    .get<Payment[]>("/payments", { params: campaignId ? { campaignId } : undefined })
+    .then((res) => res.data);
 }
 
 // --- Campaigns ---

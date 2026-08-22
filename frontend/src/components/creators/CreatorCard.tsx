@@ -78,11 +78,18 @@ export function CreatorCard({ creator, selected, onToggleSelect }: CreatorCardPr
             </div>
           </Link>
         </div>
-        {creator.matchScore != null && (
-          <span className="shrink-0 rounded-md bg-success-soft px-2 py-0.5 text-[13px] font-semibold text-success">
-            {Math.round(creator.matchScore)}%
-          </span>
-        )}
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          {creator.source && creator.source !== "DATASET" && (
+            <span className="rounded-md bg-danger-soft px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-danger">
+              Live
+            </span>
+          )}
+          {creator.matchScore != null && (
+            <span className="rounded-md bg-success-soft px-2 py-0.5 text-[13px] font-semibold text-success">
+              {Math.round(creator.matchScore)}%
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-4 gap-2 border-y-[0.5px] border-border py-3 text-sm">
