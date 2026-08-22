@@ -13,8 +13,9 @@ import { NotificationsMenu } from "../../components/layout/NotificationsMenu";
 import { Sheet } from "../../components/ui/Sheet";
 import { Skeleton } from "../../components/ui/Skeleton";
 import { Modal } from "../../components/ui/Modal";
-import { fetchCreators, importCreatorFromYouTube, type CreatorSetStats } from "../../lib/apiClient";
+import { fetchCreators, importCreatorFromYouTube, searchCreators, type CreatorSetStats } from "../../lib/apiClient";
 import type { Creator } from "../../types/creator";
+import type { SearchFilters } from "../../types/search";
 
 const STORAGE_KEY = "discover-state";
 
@@ -25,6 +26,7 @@ interface PersistedState {
   stats: CreatorSetStats | null;
   searched: boolean;
   selectedIds: string[];
+  appliedFilters: SearchFilters | null;
 }
 
 function loadPersisted(): PersistedState | null {
@@ -34,6 +36,28 @@ function loadPersisted(): PersistedState | null {
   } catch {
     return null;
   }
+}
+
+// Derives display stats from an arbitrary set of results (used by AI search,
+// which bypasses the /creators listing endpoint that normally supplies them).
+function statsFromResults(creators: Creator[]): CreatorSetStats {
+  const count = creators.length;
+  const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const avg = count ? creators.reduce((sum, c) => sum + (c.engagementRate || 0), 0) / count : 0;
+  return {
+    count,
+    avgEngagementRate: Math.round(avg * 10) / 10,
+    categories: new Set(creators.map((c) => c.category).filter(Boolean)).size,
+    cities: new Set(creators.map((c) => c.city).filter(Boolean)).size,
+    thisWeekCount: creators.filter((c) => c.lastSyncedAt && new Date(c.lastSyncedAt).getTime() >= weekAgo).length,
+    verifiedPercent: count ? Math.round((creators.filter((c) => c.verified).length / count) * 100) : 0,
+  };
+}
+
+function compactNumber(n: number): string {
+  if (n >= 1_000_000) return `${Math.round(n / 100_000) / 10}M`;
+  if (n >= 1_000) return `${Math.round(n / 100) / 10}K`;
+  return String(n);
 }
 
 const SORT_OPTIONS: { key: string; label: string }[] = [
@@ -66,6 +90,7 @@ export default function CreatorList() {
   const [error, setError] = useState<string | null>(null);
   const [searched, setSearched] = useState(initial?.searched ?? false);
   const [selectedIds, setSelectedIds] = useState<string[]>(initial?.selectedIds ?? []);
+  const [appliedFilters, setAppliedFilters] = useState<SearchFilters | null>(initial?.appliedFilters ?? null);
   const [sortKey, setSortKey] = useState("relevance");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
@@ -103,9 +128,9 @@ export default function CreatorList() {
   // Persist on every relevant change — not just on unmount — so switching
   // tabs or a hard navigation doesn't lose the last search either.
   useEffect(() => {
-    const state: PersistedState = { query, filterValues, results, stats, searched, selectedIds };
+    const state: PersistedState = { query, filterValues, results, stats, searched, selectedIds, appliedFilters };
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }, [query, filterValues, results, stats, searched, selectedIds]);
+  }, [query, filterValues, results, stats, searched, selectedIds, appliedFilters]);
 
   // Populate the grid immediately on a fresh visit, not just after a search —
   // "N creators found" should already be true the moment the page loads.
@@ -128,14 +153,35 @@ export default function CreatorList() {
     setQuery(submittedQuery);
     setLoading(true);
     setError(null);
+
+    // An empty submit resets back to the full catalog.
+    if (!submittedQuery.trim()) {
+      setAppliedFilters(null);
+      try {
+        const { creators, stats: s } = await fetchCreators({}, 1, 60);
+        if (requestId !== searchRequestId.current) return;
+        setResults(creators);
+        setStats(s);
+        setSearched(true);
+      } catch {
+        if (requestId === searchRequestId.current) setError("Search failed. Try again.");
+      } finally {
+        if (requestId === searchRequestId.current) setLoading(false);
+      }
+      return;
+    }
+
     try {
-      const { creators, stats: s } = await fetchCreators({ name: submittedQuery || undefined }, 1, 60);
+      // AI-powered search: the query is parsed (Gemini) into structured
+      // filters, then matched against the creator database and ranked.
+      const { filters, results: found } = await searchCreators(submittedQuery);
       // A newer search may have started (and possibly already resolved)
       // while this one was in flight — don't let a slower, stale response
       // clobber it.
       if (requestId !== searchRequestId.current) return;
-      setResults(creators);
-      setStats(s);
+      setResults(found);
+      setStats(statsFromResults(found));
+      setAppliedFilters(filters);
       setSearched(true);
     } catch {
       if (requestId === searchRequestId.current) setError("Search failed. Try again.");
@@ -148,6 +194,7 @@ export default function CreatorList() {
     setResults(filtered);
     setStats(filteredStats);
     setSearched(true);
+    setAppliedFilters(null); // these results came from manual filters, not AI
     setError(null);
   }
 
@@ -167,6 +214,21 @@ export default function CreatorList() {
   }, [results, sortKey]);
 
   const photoPool = results.map((c) => c.profileImage).filter((p): p is string => !!p);
+
+  const aiFilterChips = useMemo(() => {
+    if (!appliedFilters) return [];
+    const chips: string[] = [];
+    const f = appliedFilters;
+    if (f.category) chips.push(`Category: ${f.category}`);
+    if (f.platform) chips.push(`Platform: ${f.platform}`);
+    if (f.country) chips.push(f.country);
+    if (f.city) chips.push(f.city);
+    if (f.minFollowers && f.maxFollowers) chips.push(`${compactNumber(f.minFollowers)}–${compactNumber(f.maxFollowers)} followers`);
+    else if (f.minFollowers) chips.push(`${compactNumber(f.minFollowers)}+ followers`);
+    else if (f.maxFollowers) chips.push(`Up to ${compactNumber(f.maxFollowers)} followers`);
+    if (f.minEngagement) chips.push(`${f.minEngagement}%+ engagement`);
+    return chips;
+  }, [appliedFilters]);
 
   return (
     <div className="space-y-6 py-6">
@@ -188,6 +250,17 @@ export default function CreatorList() {
       </div>
 
       <SearchBar onSearch={handleSearch} loading={loading} initialQuery={query} />
+
+      {aiFilterChips.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium text-ink-secondary">AI understood:</span>
+          {aiFilterChips.map((chip) => (
+            <span key={chip} className="rounded-full bg-teal-soft px-2.5 py-1 text-xs text-teal">
+              {chip}
+            </span>
+          ))}
+        </div>
+      )}
 
       <Modal
         open={importOpen}
