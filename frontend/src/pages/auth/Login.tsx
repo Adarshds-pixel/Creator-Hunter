@@ -241,47 +241,26 @@ export default function Login() {
             <div className="flex-1 h-px bg-border" />
           </div>
 
-          {/* Demo credential buttons */}
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={() =>
-                fillCredentials("demo@creatorhunter.app", "Password123!")
-              }
-              className="login-demo-btn group"
-            >
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-soft text-teal text-xs font-bold group-hover:scale-105 transition-transform">
-                DU
-              </div>
-              <div className="text-left">
-                <span className="block text-sm font-semibold text-ink leading-tight">
-                  Demo User
-                </span>
-                <span className="text-[11px] text-ink-secondary">
-                  Owner role
-                </span>
-              </div>
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                fillCredentials("admin@creatorhunter.app", "AdminPass123!")
-              }
-              className="login-demo-btn group"
-            >
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-soft text-indigo text-xs font-bold group-hover:scale-105 transition-transform">
-                AD
-              </div>
-              <div className="text-left">
-                <span className="block text-sm font-semibold text-ink leading-tight">
-                  Admin User
-                </span>
-                <span className="text-[11px] text-ink-secondary">
-                  Admin role
-                </span>
-              </div>
-            </button>
-          </div>
+          {/* Demo credential button */}
+          <button
+            type="button"
+            onClick={() =>
+              fillCredentials("admin@creatorhunter.app", "AdminPass123!")
+            }
+            className="login-demo-btn group w-full"
+          >
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-soft text-indigo text-xs font-bold group-hover:scale-105 transition-transform">
+              AD
+            </div>
+            <div className="text-left">
+              <span className="block text-sm font-semibold text-ink leading-tight">
+                Admin User
+              </span>
+              <span className="text-[11px] text-ink-secondary">
+                Full access
+              </span>
+            </div>
+          </button>
 
           {/* Footer link */}
           <p className="mt-8 text-center text-sm text-ink-secondary">

@@ -16,8 +16,8 @@ export function UserChip() {
     navigate("/login");
   };
 
-  const displayName = user?.name || "Demo User";
-  const displayEmail = user?.email || "demo@creatorhunter.app";
+  const displayName = user?.name || "Admin User";
+  const displayEmail = user?.email || "admin@creatorhunter.app";
 
   return (
     <DropdownMenu.Root>

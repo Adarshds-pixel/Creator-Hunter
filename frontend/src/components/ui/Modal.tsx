@@ -14,7 +14,7 @@ export function Modal({ open, onOpenChange, title, description, children }: Moda
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-ink/40" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-card border-[0.5px] border-border bg-surface p-6 shadow-lg">
+        <Dialog.Content className="fixed left-1/2 top-1/2 max-h-[85vh] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-card border-[0.5px] border-border bg-surface p-6 shadow-lg">
           <Dialog.Title className="text-base font-semibold text-ink">{title}</Dialog.Title>
           {description && (
             <Dialog.Description className="mt-1 text-sm text-steel-500">

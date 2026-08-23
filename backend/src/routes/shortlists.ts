@@ -11,14 +11,14 @@ import { optionalAuth, type AuthenticatedRequest } from "../middleware/auth.js";
 
 const router = Router();
 
-const DEMO_USER_EMAIL = "demo@creatorhunter.app";
+const FALLBACK_USER_EMAIL = "admin@creatorhunter.app";
 
 async function resolveUserId(reqUser?: { _id: unknown }, userIdBody?: string): Promise<string> {
   if (reqUser?._id) return String(reqUser._id);
   if (userIdBody) return userIdBody;
-  const demoUser = await User.findOne({ email: DEMO_USER_EMAIL }).lean();
-  if (!demoUser) throw new Error("Demo user not seeded — run `npm run seed`");
-  return String(demoUser._id);
+  const fallbackUser = await User.findOne({ email: FALLBACK_USER_EMAIL }).lean();
+  if (!fallbackUser) throw new Error("Admin user not seeded — run `npm run seed`");
+  return String(fallbackUser._id);
 }
 
 // GET /api/shortlists

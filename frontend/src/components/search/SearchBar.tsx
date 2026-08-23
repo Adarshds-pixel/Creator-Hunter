@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { Search } from "lucide-react";
 
 interface SearchBarProps {
@@ -25,6 +25,15 @@ export function SearchBar({ onSearch, loading, initialQuery }: SearchBarProps) {
     onSearch(query.trim());
   }
 
+  // Clearing the box (e.g. backspacing to empty) restores the full catalog
+  // immediately, without waiting for an explicit re-submit — this only
+  // fires once, right at the empty transition, not on every keystroke.
+  function handleChange(e: ChangeEvent<HTMLInputElement>) {
+    const next = e.target.value;
+    setQuery(next);
+    if (next === "" && query !== "") onSearch("");
+  }
+
   return (
     <form onSubmit={handleSubmit} className="flex gap-2">
       <div className="relative flex-1">
@@ -32,7 +41,7 @@ export function SearchBar({ onSearch, loading, initialQuery }: SearchBarProps) {
         <input
           type="text"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={handleChange}
           placeholder="Search creators by name"
           className="w-full rounded-control border border-border bg-surface py-3 pl-10 pr-3 text-sm text-ink placeholder:text-ink-secondary focus:border-teal focus:outline-none"
         />

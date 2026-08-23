@@ -60,6 +60,12 @@ router.get("/", async (req: Request, res: Response) => {
 
     const [creators, total, stats] = await Promise.all([
       Creator.find(filter)
+        // Newest first, with a stable tiebreaker — without an explicit sort,
+        // Mongo's natural document order isn't guaranteed stable across
+        // requests (it can shift as documents are updated/inserted), which
+        // showed up as the grid re-ordering itself between loads, and as a
+        // freshly imported creator not appearing in the first page at all.
+        .sort({ createdAt: -1, _id: -1 })
         .skip((page - 1) * limit)
         .limit(limit)
         .lean(),
@@ -114,9 +120,14 @@ router.post("/import", validateBody(creatorImportSchema), async (req: Request, r
   try {
     const payload = await importYouTubeProfile(req.body.url);
 
+    // These three aren't part of the payload (see the comment on
+    // CreatorPayload) — $unset clears any stale value a previous import
+    // (before that became the case) may have left on this document, so
+    // re-importing an already-known creator actually fixes it rather than
+    // leaving old placeholder data in place alongside the fresh fields.
     const creator = await Creator.findOneAndUpdate(
       { source: payload.source, sourceId: payload.sourceId },
-      { $set: payload },
+      { $set: payload, $unset: { growthRate: "", authenticityScore: "", audienceQualityScore: "" } },
       { new: true, upsert: true, setDefaultsOnInsert: true }
     ).lean();
 

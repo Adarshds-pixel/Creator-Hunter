@@ -42,11 +42,15 @@ export interface ICreatorAttrs {
   audienceUK: number;
   audienceOther: number;
 
-  growthRate: number;
+  // Unset (not defaulted) for live imports — see services/providers/youtube.ts.
+  // A one-shot snapshot can't measure real growth, and there's no
+  // fraud-detection signal available to compute authenticity/audience
+  // quality from a public API lookup.
+  growthRate?: number;
   estimatedCost: number;
 
-  authenticityScore: number;
-  audienceQualityScore: number;
+  authenticityScore?: number;
+  audienceQualityScore?: number;
 
   source: string;
   sourceId?: string;
@@ -97,11 +101,16 @@ const creatorSchema = new Schema<ICreator>(
     audienceUK: { type: Number, default: 0 },
     audienceOther: { type: Number, default: 0 },
 
-    growthRate: { type: Number, default: 0 },
+    // No `default: 0` here deliberately — 0 is a legitimate real growthRate
+    // (seed range is -2 to 15) and authenticity/audienceQuality never
+    // legitimately hit 0 either, so an explicit absence needs to stay a
+    // genuine absence for ranking.ts's "no signal -> neutral" checks to
+    // trust `!= null`, rather than colliding with a real measured value.
+    growthRate: { type: Number },
     estimatedCost: { type: Number, default: 0 },
 
-    authenticityScore: { type: Number, default: 0 },
-    audienceQualityScore: { type: Number, default: 0 },
+    authenticityScore: { type: Number },
+    audienceQualityScore: { type: Number },
 
     source: { type: String, default: "DATASET" },
     sourceId: { type: String },

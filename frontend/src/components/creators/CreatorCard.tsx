@@ -99,7 +99,10 @@ export function CreatorCard({ creator, selected, onToggleSelect }: CreatorCardPr
           value={formatPercent(creator.engagementRate)}
           tone={engagementTone(creator.engagementRate)}
         />
-        <Metric label="Authenticity" value={String(creator.authenticityScore)} />
+        <Metric
+          label="Authenticity"
+          value={creator.authenticityScore != null ? String(creator.authenticityScore) : "—"}
+        />
         <Metric label="Est. cost" value={formatINR(creator.estimatedCost)} />
       </div>
 

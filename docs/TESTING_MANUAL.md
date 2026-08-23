@@ -37,11 +37,7 @@ npm run seed
 
 This clears and repopulates:
 - **500 Creator documents** across 10 categories (Fitness, Gaming, Technology, Beauty, Fashion, Finance, Food, Travel, Education, Lifestyle) with avatars, follower tiers, engagement rates, authenticity scores, and demographic shares.
-- **Pre-seeded Demo User**:
-  - Email: `demo@creatorhunter.app`
-  - Password: `Password123!`
-  - Role: `OWNER`
-- **Pre-seeded Admin User**:
+- **Pre-seeded Admin User** (single login, full access — no role-based restrictions):
   - Email: `admin@creatorhunter.app`
   - Password: `AdminPass123!`
   - Role: `ADMIN`
@@ -87,8 +83,8 @@ All automated test suites and typechecks pass with **100% clean exit codes (0 er
 Work through this in order — it exercises every layer of the platform:
 
 1. **Authentication** (`/login` / `/register`)
-   - Visit `/login`. Click **"Demo User (Owner)"** quick-fill button, then click **Sign in**.
-   - Confirm redirect to `/dashboard`. Observe that the navigation bar now displays the user avatar, name (`Demo User`), and `OWNER` role badge.
+   - Visit `/login`. Click the **"Admin User"** quick-fill button, then click **Sign in**.
+   - Confirm redirect to `/dashboard`. Observe that the navigation bar now displays the user avatar, name (`Admin User`), and `ADMIN` role badge.
    - Click **Sign out** to test session clearance, or register a new account on `/register`.
 2. **Dashboard** (`/dashboard`)
    - Displays real-time aggregation tiles: Active Campaigns, Creators Discovered, Shortlisted, Outreach Sent, Replies.

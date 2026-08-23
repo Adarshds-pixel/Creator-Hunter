@@ -97,7 +97,7 @@ export default function Shortlists() {
         Category: creator?.category || "",
         Followers: creator?.followers || 0,
         EngagementRate: `${creator?.engagementRate || 0}%`,
-        AuthenticityScore: creator?.authenticityScore || 0,
+        AuthenticityScore: creator?.authenticityScore ?? "",
         EstimatedCost: creator?.estimatedCost || 0,
         Location: creator?.location || "",
         Notes: sc.notes || "",

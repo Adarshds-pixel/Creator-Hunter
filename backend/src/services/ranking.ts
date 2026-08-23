@@ -70,7 +70,31 @@ export function engagementScore(creator: CreatorLike, campaign?: CampaignLike): 
   return clamp(60 + (rate - min) * 10);
 }
 
+// Live imports carry none of these fields (see services/providers/youtube.ts)
+// — without this check, a campaign targeting any country/age/gender would
+// score such a creator a hard 0 on audience fit purely because the data
+// doesn't exist, not because the audience is actually a bad fit. No signal
+// should read as "unknown" (neutral), the same as the factors === 0 case
+// below already does when the campaign itself asks for nothing.
+function hasAudienceData(creator: CreatorLike): boolean {
+  return [
+    creator.audienceMale,
+    creator.audienceFemale,
+    creator.age18_24,
+    creator.age25_34,
+    creator.age35_44,
+    creator.age45Plus,
+    creator.audienceIndia,
+    creator.audienceUSA,
+    creator.audienceUAE,
+    creator.audienceUK,
+    creator.audienceOther,
+  ].some((v) => v != null && v > 0);
+}
+
 export function audienceScore(creator: CreatorLike, campaign?: CampaignLike): number {
+  if (!hasAudienceData(creator)) return 50;
+
   let score = 0;
   let factors = 0;
 
@@ -219,11 +243,21 @@ const CREATOR_SCORE_WEIGHTS = {
 // curve (clamp(rate * 15)) when there's no minEngagement to compare to.
 export function calculateCreatorScore(creator: CreatorLike): CreatorScoreResult {
   // Seed data's growthRate lands roughly in [-2, 15]; map that onto 0-100
-  // rather than assuming growth is always positive.
-  const growth = clamp(((creator.growthRate ?? 0) + 2) * (100 / 17));
+  // rather than assuming growth is always positive. 0 is a legitimate real
+  // value in that range, so — unlike authenticity/audienceQuality just
+  // below, where the raw score itself can safely `?? 50` — growth needs an
+  // explicit presence check: a live import has no growthRate at all (a
+  // single snapshot can't measure it), and that absence must land on
+  // neutral, not get treated as "measured 0% growth".
+  const growth = creator.growthRate != null ? clamp((creator.growthRate + 2) * (100 / 17)) : 50;
 
   const breakdown: CreatorScoreBreakdown = {
     engagement: engagementScore(creator),
+    // `?? 50` here is exactly the missing-data case, not just a style
+    // choice: live imports genuinely have no authenticity/audience-quality
+    // signal (no fraud-detection data from a public API), so this reads as
+    // undefined and correctly falls back to neutral rather than a
+    // measured-looking number.
     authenticity: clamp(creator.authenticityScore ?? 50),
     audienceQuality: clamp(creator.audienceQualityScore ?? 50),
     growth,

@@ -13,6 +13,7 @@ import CampaignCreator, { type CampaignCreatorStatus } from "./models/CampaignCr
 import Shortlist from "./models/Shortlist.js";
 import Outreach from "./models/Outreach.js";
 import { calculateMatchScore } from "./services/ranking.js";
+import { estimateCreatorCost } from "./services/pricing.js";
 
 const CATEGORIES = [
   "Fitness",
@@ -274,25 +275,7 @@ function buildCreator(index: number, photoPool: string[]) {
     countryShare[c] = otherShares[i];
   });
 
-  // Realistic influencer-rate floor/ceiling (₹15,000-₹5,00,000), correlated
-  // with both followers (sqrt curve compresses the 1K-10M spread into that
-  // band with real rank order preserved) and engagement (higher engagement
-  // pushes the rate up, not just reach). Previously followers-only with no
-  // floor, which priced nano creators at a few hundred rupees.
-  const followerComponent = 15_000 + Math.sqrt(followers) * 153.4;
-  const engagementMultiplier = 0.8 + engagementRate * 0.05;
-  const estimatedCost = Math.round(
-    Math.max(
-      15_000,
-      Math.min(
-        500_000,
-        followerComponent *
-          engagementMultiplier *
-          (platform === "YouTube" ? 1.3 : 1) *
-          (category === "Finance" || category === "Technology" ? 1.2 : 1)
-      )
-    )
-  );
+  const estimatedCost = estimateCreatorCost({ followers, engagementRate, platform, category });
 
   const isMediocre = Math.random() < 0.13;
   const authenticityScore = isMediocre
@@ -507,20 +490,7 @@ async function seed(count = 2500) {
   await seedCampaignPipelines(insertedCampaigns);
 
   const salt = await bcrypt.genSalt(10);
-  const demoHash = await bcrypt.hash("Password123!", salt);
   const adminHash = await bcrypt.hash("AdminPass123!", salt);
-
-  await User.findOneAndUpdate(
-    { email: "demo@creatorhunter.app" },
-    {
-      name: "Demo User",
-      email: "demo@creatorhunter.app",
-      passwordHash: demoHash,
-      company: "Acme Creator Labs",
-      role: "OWNER",
-    },
-    { upsert: true, returnDocument: "after" }
-  );
 
   await User.findOneAndUpdate(
     { email: "admin@creatorhunter.app" },
@@ -535,7 +505,7 @@ async function seed(count = 2500) {
   );
 
   console.log(
-    `Seeded ${count} creators, ${campaigns.length} campaigns, ${photoPool.length} avatars, and demo/admin users.`
+    `Seeded ${count} creators, ${campaigns.length} campaigns, ${photoPool.length} avatars, and the admin user.`
   );
 }
 

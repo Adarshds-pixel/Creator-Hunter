@@ -30,13 +30,28 @@ interface MetricRow {
   value: (c: Creator) => number;
   format: (c: Creator) => string;
   higherIsBetter: boolean;
+  /** Defaults to always-available. Set for rows that can be genuinely
+   *  missing (e.g. authenticity on a live import) so an absent value never
+   *  renders as a tied "win" against another absent value. */
+  isAvailable?: (c: Creator) => boolean;
 }
 
 const METRIC_ROWS: MetricRow[] = [
   { key: "followers", label: "Followers", value: (c) => c.followers, format: (c) => formatFollowers(c.followers), higherIsBetter: true },
   { key: "engagement", label: "Engagement", value: (c) => c.engagementRate, format: (c) => formatPercent(c.engagementRate), higherIsBetter: true },
   { key: "avgViews", label: "Avg views", value: (c) => c.avgViews, format: (c) => formatFollowers(c.avgViews), higherIsBetter: true },
-  { key: "authenticity", label: "Authenticity", value: (c) => c.authenticityScore, format: (c) => String(c.authenticityScore), higherIsBetter: true },
+  {
+    key: "authenticity",
+    label: "Authenticity",
+    // Live imports have no authenticity signal at all (no fraud-detection
+    // data from a public API) — `?? 0` keeps the bar math finite without
+    // ever letting a missing score outrank a real one, while `format`
+    // shows that honestly instead of the literal string "undefined".
+    value: (c) => c.authenticityScore ?? 0,
+    format: (c) => (c.authenticityScore != null ? String(c.authenticityScore) : "—"),
+    higherIsBetter: true,
+    isAvailable: (c) => c.authenticityScore != null,
+  },
   { key: "estCost", label: "Est. cost", value: (c) => c.estimatedCost, format: (c) => formatINR(c.estimatedCost), higherIsBetter: false },
   {
     key: "costPer1k",
@@ -188,7 +203,7 @@ export default function CreatorCompare() {
                     style={{ gridTemplateColumns: `repeat(${creators.length}, minmax(160px, 1fr))` }}
                   >
                     {creators.map((c, i) => {
-                      const isWinner = values[i] === best;
+                      const isWinner = values[i] === best && (row.isAvailable?.(c) ?? true);
                       return (
                         <div key={c._id}>
                           <p
@@ -198,7 +213,7 @@ export default function CreatorCompare() {
                           </p>
                           <div className="mt-1 h-1.5 overflow-hidden rounded-pill bg-steel-100">
                             <div
-                              className={`h-full rounded-pill ${isWinner ? "bg-success" : "bg-steel-300"}`}
+                              className={`h-full rounded-pill ${isWinner ? "bg-success" : "bg-steel-500"}`}
                               style={{ width: `${Math.max(4, (values[i] / max) * 100)}%` }}
                             />
                           </div>

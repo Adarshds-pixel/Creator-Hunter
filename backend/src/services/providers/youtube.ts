@@ -1,3 +1,5 @@
+import { estimateCreatorCost } from "../pricing.js";
+
 const API_BASE = "https://www.googleapis.com/youtube/v3";
 const REQUEST_TIMEOUT_MS = 10_000;
 const RECENT_UPLOADS = 10;
@@ -61,10 +63,14 @@ type CreatorPayload = {
   avgComments: number;
   avgViews: number;
   engagementRate: number;
-  growthRate: number;
+  // Deliberately omitted, not defaulted: growth rate needs two observations
+  // over time (this is a one-shot snapshot), and authenticity/audience
+  // quality need fraud-detection signals YouTube's public API doesn't
+  // expose. Scoring (ranking.ts) treats a missing value as neutral rather
+  // than a measured one — a placeholder number here would otherwise look
+  // identical to a real score and make every import compare identically on
+  // 70% of Creator Score's weight regardless of the actual channel.
   estimatedCost: number;
-  authenticityScore: number;
-  audienceQualityScore: number;
   source: "YOUTUBE";
   sourceId: string;
   lastSyncedAt: Date;
@@ -227,7 +233,16 @@ export async function importYouTubeProfile(input: string): Promise<CreatorPayloa
   const interactions = recent.avgLikes + recent.avgComments;
   const engagementRate = followers > 0 ? Number(((interactions / followers) * 100).toFixed(2)) : 0;
 
-  const estimatedCost = Math.max(5000, Math.round(followers * 0.15 / 1000) * 1000);
+  // Same formula the seed data uses (services/pricing.ts) — a flat
+  // per-follower rate with no engagement factor or cap previously lived
+  // here instead, which priced mega-channels at multiple lakhs above the
+  // ₹15K-₹5L scale every other price-fit comparison in the app assumes.
+  const estimatedCost = estimateCreatorCost({
+    followers,
+    engagementRate,
+    platform: "YouTube",
+    category: "Lifestyle",
+  });
 
   const username = (snippet.customUrl ?? channel.id).replace(/^@/, "");
   const thumbnail =
@@ -254,10 +269,7 @@ export async function importYouTubeProfile(input: string): Promise<CreatorPayloa
     avgComments: recent.avgComments,
     avgViews: recent.avgViews,
     engagementRate,
-    growthRate: 0,
     estimatedCost,
-    authenticityScore: 70,
-    audienceQualityScore: 70,
     source: "YOUTUBE",
     sourceId: channel.id,
     lastSyncedAt: new Date(),

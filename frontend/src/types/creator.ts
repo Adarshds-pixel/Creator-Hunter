@@ -60,7 +60,7 @@ export interface Creator {
   growthRate?: number;
   estimatedCost: number;
 
-  authenticityScore: number;
+  authenticityScore?: number;
   audienceQualityScore?: number;
 
   matchScore?: number;

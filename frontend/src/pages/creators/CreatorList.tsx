@@ -109,8 +109,23 @@ export default function CreatorList() {
     setImportError(null);
     try {
       const creator = await importCreatorFromYouTube(importUrl.trim());
-      setResults((prev) => [creator, ...prev]);
-      setStats((prev) => (prev ? { ...prev, count: prev.count + 1 } : prev));
+      // Import upserts by channel id server-side — re-importing an already-
+      // known creator updates it rather than inserting a new one. Replace
+      // it in place when that's the case, instead of prepending a visual
+      // duplicate and over-counting "creators in database" for a row that
+      // was already counted.
+      setResults((prev) => {
+        const existingIndex = prev.findIndex((c) => c._id === creator._id);
+        if (existingIndex === -1) return [creator, ...prev];
+        const next = [...prev];
+        next[existingIndex] = creator;
+        return next;
+      });
+      setStats((prev) => {
+        if (!prev) return prev;
+        const alreadyCounted = results.some((c) => c._id === creator._id);
+        return alreadyCounted ? prev : { ...prev, count: prev.count + 1 };
+      });
       setSearched(true);
       setImportOpen(false);
       setImportUrl("");

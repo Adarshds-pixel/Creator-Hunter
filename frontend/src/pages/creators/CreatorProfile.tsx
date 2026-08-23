@@ -23,6 +23,25 @@ function isAllZero(values: MatchBreakdown): boolean {
   return Object.values(values).every((v) => !v);
 }
 
+// Seeded creators always have this data; live imports never do (see the
+// Audience card below) — checking every field rather than trusting `source`
+// alone also covers any future provider that's missing just some of it.
+function hasAudienceData(creator: Creator): boolean {
+  return [
+    creator.audienceMale,
+    creator.audienceFemale,
+    creator.age18_24,
+    creator.age25_34,
+    creator.age35_44,
+    creator.age45Plus,
+    creator.audienceIndia,
+    creator.audienceUSA,
+    creator.audienceUAE,
+    creator.audienceUK,
+    creator.audienceOther,
+  ].some((v) => v != null && v > 0);
+}
+
 function initials(name: string): string {
   return name
     .split(" ")
@@ -293,34 +312,45 @@ export default function CreatorProfile() {
 
         <Card>
           <p className="mb-3 text-sm font-semibold uppercase tracking-wide text-steel-500">Audience</p>
-          <div className="grid gap-6 sm:grid-cols-3">
-            <AudienceGroup
-              title="Gender"
-              rows={[
-                { label: "Male", value: creator.audienceMale },
-                { label: "Female", value: creator.audienceFemale },
-              ]}
+          {hasAudienceData(creator) ? (
+            <div className="grid gap-6 sm:grid-cols-3">
+              <AudienceGroup
+                title="Gender"
+                rows={[
+                  { label: "Male", value: creator.audienceMale },
+                  { label: "Female", value: creator.audienceFemale },
+                ]}
+              />
+              <AudienceGroup
+                title="Age"
+                rows={[
+                  { label: "18-24", value: creator.age18_24 },
+                  { label: "25-34", value: creator.age25_34 },
+                  { label: "35-44", value: creator.age35_44 },
+                  { label: "45+", value: creator.age45Plus },
+                ]}
+              />
+              <AudienceGroup
+                title="Country"
+                rows={[
+                  { label: "India", value: creator.audienceIndia },
+                  { label: "USA", value: creator.audienceUSA },
+                  { label: "UAE", value: creator.audienceUAE },
+                  { label: "UK", value: creator.audienceUK },
+                  { label: "Other", value: creator.audienceOther },
+                ]}
+              />
+            </div>
+          ) : (
+            <EmptyState
+              title="No audience data available"
+              description={
+                creator.source === "YOUTUBE"
+                  ? "This is a live YouTube import — viewer age/gender/location breakdowns require the channel owner's own YouTube Analytics access, which isn't something a public import can pull for someone else's channel."
+                  : "This creator has no recorded audience demographic data."
+              }
             />
-            <AudienceGroup
-              title="Age"
-              rows={[
-                { label: "18-24", value: creator.age18_24 },
-                { label: "25-34", value: creator.age25_34 },
-                { label: "35-44", value: creator.age35_44 },
-                { label: "45+", value: creator.age45Plus },
-              ]}
-            />
-            <AudienceGroup
-              title="Country"
-              rows={[
-                { label: "India", value: creator.audienceIndia },
-                { label: "USA", value: creator.audienceUSA },
-                { label: "UAE", value: creator.audienceUAE },
-                { label: "UK", value: creator.audienceUK },
-                { label: "Other", value: creator.audienceOther },
-              ]}
-            />
-          </div>
+          )}
         </Card>
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -339,7 +369,10 @@ export default function CreatorProfile() {
           <Card>
             <p className="mb-3 text-sm font-semibold uppercase tracking-wide text-steel-500">Authenticity</p>
             <div className="flex items-center gap-6">
-              <Metric label="Authenticity" value={String(creator.authenticityScore)} />
+              <Metric
+                label="Authenticity"
+                value={creator.authenticityScore != null ? String(creator.authenticityScore) : "—"}
+              />
               <Metric
                 label="Audience quality"
                 value={creator.audienceQualityScore != null ? String(creator.audienceQualityScore) : "—"}
@@ -433,7 +466,7 @@ function AudienceGroup({ title, rows }: { title: string; rows: { label: string; 
               <span className="w-14 shrink-0 text-ink-secondary">{row.label}</span>
               <div className="h-2 flex-1 overflow-hidden rounded-pill bg-steel-100">
                 <div
-                  className={`h-full rounded-pill ${isDominant ? "bg-teal" : "bg-steel-300"}`}
+                  className={`h-full rounded-pill ${isDominant ? "bg-teal" : "bg-steel-500"}`}
                   style={{ width: `${row.value}%` }}
                 />
               </div>

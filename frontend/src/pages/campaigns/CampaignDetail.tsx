@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import { CheckCircle2, CreditCard, Send, X } from "lucide-react";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
+import { Modal } from "../../components/ui/Modal";
 import { OutreachPanel } from "../../components/outreach/OutreachPanel";
 import {
   fetchCampaign,
@@ -151,7 +153,16 @@ export default function CampaignDetail() {
   if (!campaign) return <p className="p-6 text-sm text-ink-secondary">Loading campaign...</p>;
 
   const payErrorBanner = payError && (
-    <p className="rounded-md bg-caution-soft px-3 py-2 text-sm text-caution">{payError}</p>
+    <div className="flex items-center justify-between gap-3 rounded-md bg-caution-soft px-3 py-2 text-sm text-caution">
+      <span>{payError}</span>
+      <button
+        onClick={() => setPayError(null)}
+        aria-label="Dismiss"
+        className="shrink-0 rounded p-0.5 hover:bg-caution/10"
+      >
+        <X size={14} />
+      </button>
+    </div>
   );
 
   const grouped = new Map<string, CampaignCreator[]>();
@@ -234,9 +245,9 @@ export default function CampaignDetail() {
                     {stage === "SHORTLISTED" && (
                       <button
                         onClick={() => setActiveOutreachCreatorId(cc.creatorId)}
-                        className="rounded bg-teal-soft px-2 py-0.5 text-teal hover:bg-teal-soft/70"
+                        className="inline-flex items-center gap-1 rounded bg-teal-soft px-2 py-0.5 text-teal hover:bg-teal-soft/70"
                       >
-                        Outreach
+                        <Send size={11} /> Outreach
                       </button>
                     )}
                     {stage === "APPROVED" &&
@@ -244,8 +255,9 @@ export default function CampaignDetail() {
                         const paid = paidAdvanceFor(cc.creatorId);
                         if (paid) {
                           return (
-                            <span className="rounded bg-success-soft px-2 py-0.5 font-medium text-success">
-                              Advance paid ₹{paid.amount.toLocaleString()}
+                            <span className="inline-flex items-center gap-1 rounded bg-success-soft px-2 py-0.5 font-medium text-success">
+                              <CheckCircle2 size={11} /> Paid ₹{paid.amount.toLocaleString()}
+                              {paid.paidAt ? ` · ${new Date(paid.paidAt).toLocaleDateString()}` : ""}
                             </span>
                           );
                         }
@@ -253,9 +265,9 @@ export default function CampaignDetail() {
                           <button
                             onClick={() => handlePayAdvance(cc)}
                             disabled={payingCreatorId === cc.creatorId}
-                            className="rounded bg-teal px-2 py-0.5 font-medium text-white hover:bg-teal/90 disabled:opacity-60"
+                            className="inline-flex items-center gap-1 rounded bg-teal px-2 py-0.5 font-medium text-white hover:bg-teal/90 disabled:opacity-60"
                           >
-                            {payingCreatorId === cc.creatorId ? "Paying…" : "Pay advance"}
+                            <CreditCard size={11} /> {payingCreatorId === cc.creatorId ? "Paying…" : "Pay advance"}
                           </button>
                         );
                       })()}
@@ -275,17 +287,27 @@ export default function CampaignDetail() {
         ))}
       </div>
 
-      {activeOutreachCreatorId && id && (
-        <Card>
-          <p className="mb-2 text-sm font-medium text-ink">Outreach</p>
-          <OutreachPanel
-            creatorId={activeOutreachCreatorId}
-            campaignId={id}
-            campaign={campaign}
-            onStatusChange={load}
-          />
-        </Card>
-      )}
+      {(() => {
+        const activeCc = campaign.creators.find((cc) => cc.creatorId === activeOutreachCreatorId);
+        return (
+          <Modal
+            open={!!activeOutreachCreatorId && !!id}
+            onOpenChange={(open) => !open && setActiveOutreachCreatorId(null)}
+            title={`Outreach — ${activeCc?.creator?.name ?? "Creator"}`}
+            description="Draft a channel-specific message with AI, review it, then send and log it against this campaign."
+          >
+            {activeOutreachCreatorId && id && (
+              <OutreachPanel
+                key={activeOutreachCreatorId}
+                creatorId={activeOutreachCreatorId}
+                campaignId={id}
+                campaign={campaign}
+                onStatusChange={load}
+              />
+            )}
+          </Modal>
+        );
+      })()}
     </div>
   );
 }
